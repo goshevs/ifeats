@@ -2,7 +2,7 @@
 
 This repo contains programs that help identify sufficient conditions for successful imputation of scales with mi impute chained.
 
-Currently, the repo is in a messy working state. Clean-up is underway.
+The repo is in a messy working state. Clean-up is underway.
 
 
 ## Content

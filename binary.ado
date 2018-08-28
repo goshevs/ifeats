@@ -42,26 +42,9 @@ program define myvcov
 	restore
 
 end
-********************************************************************************	
-	
-	**** This is for future work. Don't waste time reading this part now. 
-	**** Value labels list
 
-	/*
-	label dir 
-	local labname `r(names)'
-	foreach lab of local labname {
-	* label list `lab'
-	* local value`lab' `r(k)'
-	qui ds, has(vall `lab')
-	local items_`lab' = "`r(varlist)'"
-	* di `items'
-	label list `lab'
-	di `r(k)'
-	* lobal cas_`lab' = 
-	}
-	*/
-	
+
+
 
 ********************************************************************************
 *** Define three matrices 
@@ -114,29 +97,36 @@ end
 
 
 
-**** MOdification by Zitong:
-**** It is better to tell Stata the varlist we want to simulate on for the sake of reading dta files in. 
-**** I add this as an argument called "storedvars"
-**** Use "storedvars" to create "storedscales"(input argument of catsimcore)
 
-capture program drop catsim
-program define catsim, rclass
-	
-		syntax, simobs(numlist) [nwitems(integer 3) ntitems(integer 12) propmiss(real 0) mblock(integer 0) simvcov(integer 1) simmarginal(integer 1) storedvcov(string) storedmarginal(string) storedvars(string)]
-	
+********************************************************************************
+**** Simulation function
+**** mysim works for binary variables. 
 
-	if `simmarginal' == 1 {
-	**** Todo. 
+capture program drop mysim
+program define mysim, rclass
+	syntax, simobs(numlist) [simcorb(numlist) nwitems(integer 3) ntitems(integer 12) corw(real 0) propmiss(real 0) mblock(integer 0) simvcov(integer 1) storedvcov(string)]
+
+	if `simvcov' == 1 {
+	
+		mat simmat = J(`: word count `simcorb'' , `: word count `simobs'', .)
+		
+		local cols = 1
+		foreach lobs of local simobs {
+			local rows = 1
+			foreach lcorb of local simcorb {
+
+				mysimcore `lobs' `lcorb' `cols' `rows' `nwitems' `ntitems' `corw' `propmiss' `mblock' `simvcov' `storedvcov'
+				local ++rows
+			}
+			local ++cols
+		}
 	}
 	else {
-		capture unab `storedvars':  `storedvars'
-		qui scaleclean `storedvars' 
-	
 		mat simmat = J(1, `: word count `simobs'', .)
 		local rows = 1
 		local cols = 1
 		foreach lobs of local simobs {
-			catesimcore `lobs' 1 `cols' `rows' `nwitems' `ntitems' 1 `propmiss' `mblock' `simvcov' `simmarginal' `storedvcov' `storedmarginal' `r(scales)'
+			mysimcore `lobs' 1 `cols' `rows' `nwitems' `ntitems' 1 `propmiss' `mblock' `simvcov' `storedvcov'
 			local ++cols
 		}
 	}
@@ -147,10 +137,12 @@ end
 
 
 
-capture program drop catesimcore
-program define catesimcore
- 
-	args nobs corb cols rows nwitems ntitems corw propmiss mblock simvcov simmarginal storedvcov storedmarginal storedscales
+
+
+capture program drop mysimcore
+program define mysimcore
+
+	args nobs corb cols rows nwitems ntitems corw propmiss mblock simvcov storedvcov 
 	
 /*
 	local nobs    = `lobs'     // data has 64
@@ -161,14 +153,11 @@ program define catesimcore
 	local missing = 0.6       // proportion of missing (based on obs)
 	local mblock  = 1         // block missing (boolean)
 	local simvcov = 1         // simulate vcov or use data vcov (boolean)
-
 */
 
 	clear	
 	set obs `nobs'
-
 	
-	**** Need change the display command.
 	if `simvcov' == 1 {
 		di _n in y "************************************************************"
 		di in y    "* Sample size        : " `nobs'
@@ -180,11 +169,10 @@ program define catesimcore
 		di _n in y "************************************************************"
 		di in y    "* Sample size        : " `nobs'
 		di in y    "* Using empirical vcov "		
-		di in y	   "* Using empirical marginal distribution"
 		di in y "************************************************************"
 	}
 	
-
+	qui {
 
 		********************************************************************************
 		*** Define means and vcov
@@ -206,65 +194,45 @@ program define catesimcore
 			restore
 			noi di "(Correlation matrix of the data)"
 		}
-		/*
-		if `simmarginal' == 1 {
-		**** todo. In this case, create cut points from simulated marginal distribution. 
-		}
-		*/
-*		else { // In the else case, create cut points from mu matrix, which is imported. 
-		
-		**** Modification here (08/13) 
-		**** Read in empirical marginal distribution from different scales. 				
-		
-		local scales `storedscales'
-		
-		**** Change codes to loop for scales. 
-		local i = 1	
-		foreach sca of local scales {
-			preserve
-			use "`storedmarginal'/sca`sca'perc.dta", clear
-			qui su
-			drop if _n == _N
-			drop cate_perc
-			mkmat _all, matrix(mu_`i')
-			local ++i 
-			restore 
-		}
-			
-		local --i 
-		di "This is my i : `i'"
-			
-			local k = 1 // This is the column index in the output
-			local mcol = 1 // Column index for each matrix
-			local mrow = 1 // Row index for each matrix 
-			
-			forval j = 1/`i' {  // j is the index for matrices
-			forval mcol = 1/`ntitems' {
-			local cp`k' ""
-			forval mrow = 1/`r(N)' {
-			local cutp = mu_`j'[`mrow', `mcol']
-			local cp`k' = "`cp`k''" + ", `cutp'"	
-			}
-			local cp`k' = subinstr("`cp`k''", ", ", "", 1)
-			local cp_`k' = "`cp`k''"
-			local ++k
-			}			
-* 			local --k
-			noi di "(Marginal distribution from the data)"
-			local ++j
-		}
 		
 		drawnorm myvar1-myvar`ntitems', means(means) corr(rho) n(`=_N')
+
 		
-		forval i = 1/`ntitems'{
-		egen cmyvar`i' = xtile(myvar`i'), percentiles(`cp_`i'')
-		drop myvar`i' 
-		rename cmyvar`i' myvar`i' 
-		replace myvar`i' = myvar`i'- 1 // Changed 08/08, we want every catogorical variable to start from 0 instead of 1. 
+		
+		*** Convert normals to BINARY
+		foreach var of varlist myvar* {
+			replace `var' = cond(`var' <= 0, 0, 1)
 		}
-		sum myvar*
+
+		*** Need another one for categorical
 		
-				
+		**** Zitong's Part:
+		**** This part owes its theoritical background to  Kaiser, Träger and Leisch (2011) 
+		**** "Generating Correlated Ordinal Random Values". 
+		**** In this paper, authors propose two different methods for simulation 
+		**** of ordinal multiple variables: the binary conversion method and mean mapping method. 
+		**** In our situation we have at most 4 categories and usually more than 10 variables. 
+		**** Mean mapping method is more consistent with our situation. 
+		**** My codes are based on mean mapping method in KTL(2011). 
+		
+		
+		**** Try Define a program "ordsim" later. 
+		
+		* Define rho_c
+		
+		
+		
+		
+		
+		
+		/*
+		foreach var of varlist myvar* {
+		
+		}
+		*/
+		
+		
+
 		********************************************************************************
 		** Introduce missingness
 		********************************************************************************
@@ -327,7 +295,7 @@ program define catesimcore
 			local ++i	
 		}
 		gen myprofile = `mysum'
-		noi sum
+
 
 		********************************************************************************
 		*** Compute tests
@@ -430,7 +398,7 @@ program define catesimcore
 		else {
 			noi di "Distances not computed."
 		}
-	
+	}
 
 	*** Imputation
 	mi set flong
@@ -447,11 +415,5 @@ program define catesimcore
 	*** Store results
 	mat simmat[`rows', `cols'] = _rc
 
-
 end
-
-
-
-
-
 
