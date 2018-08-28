@@ -257,8 +257,17 @@ program define catdist
 		mata: st_vlload("`labname'", values, text); _transpose(values)
 		mata: st_local("labs", invtokens(strofreal(values)))
 		
+		*** If labels do not exist, infer from items
+		/*
 		*** Retrieve levels from items
-		local all_levels ""
+		local labs ""
+		foreach item of local scale_items { // iterate over items of a scale
+			qui levelsof `item', local(levs) 
+			local labs: list labs | levs // keep the union of the lists
+		}
+		*/
+		
+		*** Creates the file with item cummulative distributions		
 		local counter = 1
 		foreach item of local scale_items { // iterate over items of a scale
 			qui levelsof `item', local(levs)   // get the levels of the item
