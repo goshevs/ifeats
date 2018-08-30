@@ -248,7 +248,19 @@ program define catdist
 	local nscales: word count `namelist'
 	foreach scale of local namelist { //iterate over scales
 		unab scale_items: `scale'*
-		* di "`scale_items'"
+		
+		**** Modification by Zitong: 
+		**** One drawback of unab is to bring in string variables like "other" 
+		**** And it will break the code. (The version I got has this problem)
+		**** Drop these string vars before we continue. 
+		
+		qui ds `scale_items', has(type string)
+		local nonum = "`r(varlist)'"
+		local scale_items: list scale_items - nonum
+
+		**** Done 
+		
+
 		
 		*** If a label exists:  // FIX THIS!
 		*** Retrieve levels from label
@@ -258,14 +270,14 @@ program define catdist
 		mata: st_local("labs", invtokens(strofreal(values)))
 		
 		*** If labels do not exist, infer from items
-		/*
+
 		*** Retrieve levels from items
 		local labs ""
 		foreach item of local scale_items { // iterate over items of a scale
 			qui levelsof `item', local(levs) 
 			local labs: list labs | levs // keep the union of the lists
 		}
-		*/
+
 		
 		*** Creates the file with item cummulative distributions		
 		local counter = 1
