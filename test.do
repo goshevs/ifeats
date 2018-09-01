@@ -23,22 +23,50 @@ local output_folder "~/Desktop/imputations/temp-data"
 *** Load data and programmes
 use "`data_folder'/test-data", clear
 do "`script_folder'/scales.ado"
-do "`script_folder'/newvcov.ado"
+do "`script_folder'/core-programs.ado"
 
 
-* scaleclean kzf* hsclg*
-* mypercent kzf saving("`output_folder'") 
-catdist kzf hsclg
+*** Create the cummulative distributions of all categorical items
+* qui catDist kzf hsclg, scales(kzf=(0(1)4) hsclg=(1(1)4)) saving("`output_folder'")
+
+*** Obtain the empirical correlation matrix of the data
+* qui dataCorrMat kzf hsclg, saving("`output_folder'/empirCorrMat.dta") 
 
 
-* use kzf_complete, clear
-* use hsclg_complete, clear
+
+/*
+***** Options for ifeats
+nobs        : sample sizes
+simcorb     : between-item correlation
+nwitems     : number of within items (essentially the number of time periods)
+ntitems     : number of total items (time periods * number of indicators)
+corw        : within-item correlation (over time)
+propmiss    : proportion of missing (based on obs)
+mblock      : block missing (boolean); all items missing in a period
+simcorr     : simulate corrMat or use empirical corrMat (boolean)
+storedcorr  :  if simvcov(0) then location of stored empirical corrMat 
+simmarginal :
+storedmarginal
+storedvars
+
+*/
+
+
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.2) mblock(1) simcorr(0) ///
+        simmarginals(0) corrmatrix("`output_folder'/empirCorrMat.dta") /// 
+		marginals("`output_folder'")
+
+exit	
+* hsclg20_tp2
+
+
+
 
 
 *order _all, alpha
 *order levels, first
 
-exit
+
 
 ********************************************************************************
 **** Use Extracted information
