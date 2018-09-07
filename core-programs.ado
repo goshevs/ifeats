@@ -13,33 +13,37 @@ capture program drop dataCorrMat
 program define dataCorrMat
 
 	syntax namelist, saving(string)  // string here is a path
-
-	local all_items ""
-	foreach name of local namelist {
-		unab scale_items: `name'*
-		local all_items "`all_items' `scale_items'"
-	}
 	
-	* scaleclean `varlist' // we will include this utility later; 
-	
-	** Compute Spearman's correlation
-	spearman `all_items', stats(rho)
-	
-	** Save the matrix
-	mat dcorr = r(Rho)
+	qui {
+		noi di in y "Creating correlation matrix... "
+		local all_items ""
+		foreach name of local namelist {
+			unab scale_items: `name'*
+			local all_items "`all_items' `scale_items'"
+		}
 		
-	*** fudge the correlation matrix (change missing to 0)
-	mata: fixed = editmissing(st_matrix("dcorr"), 0)
-	mata: _diag(fixed, 1)
-	mata: st_matrix("dcorr", fixed)
-	
-	** Save the correlation matrix
-	preserve
-	clear
-	svmat dcorr
-	save `saving', replace
-	restore
-
+		* scaleclean `varlist' // we will include this utility later; 
+		
+		** Compute Spearman's correlation
+		spearman `all_items', stats(rho)
+		
+		** Save the matrix
+		mat dcorr = r(Rho)
+			
+		*** fudge the correlation matrix (change missing to 0)
+		mata: fixed = editmissing(st_matrix("dcorr"), 0)
+		mata: _diag(fixed, 1)
+		mata: st_matrix("dcorr", fixed)
+		
+		** Save the correlation matrix
+		preserve
+		clear
+		svmat dcorr
+		save `saving', replace
+		restore
+		
+		noi di in y "Done."
+	}
 end
 
 
@@ -101,7 +105,7 @@ end
 
 
 
-**** MOdification by Zitong:
+**** Modification by Zitong:
 **** It is better to tell Stata the varlist we want to simulate on for the sake of reading dta files in. 
 **** I add this as an argument called "storedvars"
 **** Use "storedvars" to create "storedscales"(input argument of catsimcore)

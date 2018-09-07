@@ -52,7 +52,7 @@ program define catDist
 				local catsData: list catsData | levs // keep the union of the lists
 			}
 
-			noi di in y "****************************************" ///
+			noi di _n in y "****************************************" ///
 			_n      "** Scale `scale' " ///
 			_n      "****************************************"
 			
@@ -66,7 +66,7 @@ program define catDist
 				}
 				else {
 					noi di in y "LABELS: label values are DIFFERENT from user input. " ///
-					_n "    Difference are: `s(differences)'" /// 
+					_n "    Differences are: `s(differences)'" /// 
 					_n "    Using user input"
 				}
 			}
@@ -79,7 +79,7 @@ program define catDist
 			}
 			else {
 				noi di in y "DATA: item categories are DIFFERENT from user input. " ///
-				_n "    Difference are: `s(differences)'" /// 
+				_n "    Differences are: `s(differences)'" /// 
 				_n "    Using user input"
 			}
 			
