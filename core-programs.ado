@@ -138,7 +138,7 @@ program define ifeats, rclass
 		local rows = 1
 		local cols = 1
 		foreach lobs of local nobs {
-		di "`nTotalItems'"
+		* di "`nTotalItems'"
 			ifeatsCore `lobs' 1 `cols' `rows' `nwitems' 1 `propmiss' `mblock' `simcorr' `simmarginals' `corrmatrix' `marginals' "`namelist'" "`nTotalItems'"
 		}
 	}
@@ -167,23 +167,23 @@ program define ifeatsCore
 */
 
 	clear	
-	set obs `nobs'
+	qui set obs `nobs'
 
 	
 	**** Need change the display command.
 	if `simcorr' == 1 {
-		di _n in y "************************************************************"
-		di in y    "* Sample size        : " `nobs'
-		di in y    "* Within correlation : " `corw'
-		di in y    "* Between correlation: " `corb'
-		di in y    "************************************************************"
+		noi di _n in y "************************************************************"
+		noi di in y    "* Sample size        : " `nobs'
+		noi di in y    "* Within correlation : " `corw'
+		noi di in y    "* Between correlation: " `corb'
+		noi di in y    "************************************************************"
 	}
 	else {
-		di _n in y "************************************************************"
-		di in y    "* Sample size        : " `nobs'
-		di in y    "* Using empirical correlation matrix "		
-		di in y	   "* Using empirical marginal distributions"
-		di in y "************************************************************"
+		noi di _n in y "************************************************************"
+		noi di in y    "* Sample size        : " `nobs'
+		noi di in y    "* Using empirical correlation matrix "		
+		noi di in y	   "* Using empirical marginal distributions"
+		noi di in y "************************************************************"
 	}
 	
 	
@@ -224,7 +224,7 @@ program define ifeatsCore
 	
 		*** Read in scale_cdist's as matrices
 		local i = 1
-		foreach scale of local namelist {
+		qui foreach scale of local namelist {
 			*** Load the marginals, create matrices
 			preserve
 			
@@ -235,7 +235,7 @@ program define ifeatsCore
 			unab items: _all
 			local `scale'_items = subinstr("`items'", "cats", "", .) // stores names
 			local nItems: list sizeof `scale'_items 
-			di "`nItems'"					
+			* di "`nItems'"					
 			
 			qui levelsof cats, local(`scale'_cats)     // categories
 			local nCats: list sizeof `scale'_cats
@@ -244,14 +244,14 @@ program define ifeatsCore
 			mata: `scale'_cd = st_data(.,.)
 			restore 
 	
-			*** Generate the items according to the marginals
+			*** Generate the items following the marginals
 			local matcol = 1
 			foreach item of local `scale'_items {
-				di "`item'"
+				* di "`item'"
 				mata: mat_ph = `scale'_cd[1...,`matcol'..`matcol']
 				mata: _transpose(mat_ph)
 				mata: st_local("pctiles", invtokens(strofreal(mat_ph,"%12.10g")))
-				di "`pctiles'"
+				* di "`pctiles'"
 				egen `item' = xtile(myvar`i'), percentiles(`pctiles') // this requires egenmore
 				replace `item' = `item' - 1
 				drop myvar`i'
@@ -260,50 +260,68 @@ program define ifeatsCore
 			}
 		}
 	}
-	sum
-	exit
+	* sum
 	
 	********************************************************************************
 	** Introduce missingness
 	********************************************************************************
 
+	noi di _n in y "Introducing missingness... "
+	
 	*** Random missing pattern
-	tempvar obsmiss
 	if `mblock' ~= 1 {
-		foreach var of varlist _all {
-			replace `var' = . if runiform() <= `propmiss'
+		qui foreach scale of local namelist {
+			unab scale_items: `scale'*
+			local misslist ""
+			tempvar missTotal
+			foreach item of local scale_items {
+				replace `item' = . if runiform() <= `propmiss'
+				local misslist "`misslist', `item'"
+			}
+			gen missTotal_`scale' = 1- missing(`misslist')
+			qui sum missTotal_`scale'
+			noi di in y "Complete cases in scale `scale': `=`r(mean)' * 100'%"
 		}
 	}
-	*** Block missing pattern!!!
-	*** RETHINK THIS FOR TWO OR MORE SCALES!!!
+	
+	*** Block missing pattern
 	
 	else {
-		** sample a nwithin item (i.e. the time period). this is hard coded! has to be re-written
-		
-		gen `obsmiss' = 1 if runiform() <= `propmiss'
-		
+		*** sample a nwithin item (i.e. the time period) to determine missing observations
+		tempvar obsmiss
+		gen `obsmiss' =(runiform() <= `propmiss')
+	
+		*** sample the time period that would be missing  for each observation 
+		*** and create a new variable called nwithin_miss that containes the 
+		*** period for which obs is missing
 
-		*** sample the nwithin item (or the time period) that would be missing 
-		*** for each observation
-		* mata 
-			mata: ssize = st_nobs()
-			mata: myperiod = rdiscrete(ssize,1,(0.333333, 0.333333, 0.333334))  // FIX THIS! MULTIPLE PERIODS!
-			/* st_local("missitem", strofreal(myperiod)) */
-			mata: mynewvar = st_addvar("int", "nwithin_miss")
-			mata: st_store((1,rows(myperiod)), mynewvar, myperiod)
+		mata: ssize = st_nobs()
+		mata: timePoints = J(1, strtoreal("`nwitems'"), 1/strtoreal("`nwitems'"))
+		mata: myperiod = rdiscrete(ssize, 1, timePoints) // sample one period
+		/* st_local("missitem", strofreal(myperiod)) */
+		mata: mynewvar = st_addvar("int", "missTimePoint")  // add a new var
+		mata: st_store((1, rows(myperiod)), mynewvar, myperiod) // fill in the new var
 		
-		* end
-		
-		*** change variable values to missing for obsmiss == 1
-		forval i = 1/`=_N' {
+		*** change values to missing for observations with obsmiss == 1 for the
+		*** selected time period
+		qui forval i = 1/`=_N' {
 			if (`obsmiss'[`i'] == 1) {
-				local myval = nwithin_miss[`i'] 
-				forval j = `myval'(`nwitems')`ntitems' {
-					replace myvar`j' = . if _n == `i'
+				local toMissing = missTimePoint[`i'] 
+				foreach var of varlist _all {
+					replace `var' = . if _n == `i' & substr("`var'", `=length("`var'")', `=length("`var'")') == "`toMissing'"
 				}
 			}
 		}
-	}	
+		qui replace `obsmiss' = 1 - `obsmiss' 
+		qui sum `obsmiss'
+		noi di in y "Complete cases in the dataset: `=`r(mean)' * 100'%"
+		drop missTimePoint  // replace with a temp var
+	}
+	
+	
+	**************************************
+	*** From here on we have tests that we can spin into separate functions
+	**************************************
 	
 	*misstable sum myvar*
 	
@@ -433,6 +451,9 @@ program define ifeatsCore
 	*/
 
 	*** Replace the following with pchained!
+	
+	
+	
 	/*
 	*** Imputation
 	mi set flong

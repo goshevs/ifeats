@@ -27,10 +27,10 @@ do "`script_folder'/core-programs.ado"
 
 
 *** Create the cummulative distributions of all categorical items
-catDist kzf hsclg, scales(kzf=(0(1)4) hsclg=(1(1)4)) saving("`output_folder'")
+* catDist kzf hsclg, scales(kzf=(0(1)4) hsclg=(1(1)4)) saving("`output_folder'")
 
 *** Obtain the empirical correlation matrix of the data
-dataCorrMat kzf hsclg, saving("`output_folder'/empirCorrMat.dta") 
+* dataCorrMat kzf hsclg, saving("`output_folder'/empirCorrMat.dta") 
 
 
 
@@ -51,7 +51,7 @@ storedvars
 
 */
 
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.2) mblock(1) simcorr(0) ///
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.1) mblock(1) simcorr(0) ///
         simmarginals(0) corrmatrix("`output_folder'/empirCorrMat.dta") /// 
 		marginals("`output_folder'")
 
