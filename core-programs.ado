@@ -288,7 +288,7 @@ program define ifeatsCore
 	
 	else {
 		*** sample a nwithin item (i.e. the time period) to determine missing observations
-		tempvar obsmiss
+		tempvar obsmiss missTimePoint
 		gen `obsmiss' =(runiform() <= `propmiss')
 	
 		*** sample the time period that would be missing  for each observation 
@@ -299,14 +299,14 @@ program define ifeatsCore
 		mata: timePoints = J(1, strtoreal("`nwitems'"), 1/strtoreal("`nwitems'"))
 		mata: myperiod = rdiscrete(ssize, 1, timePoints) // sample one period
 		/* st_local("missitem", strofreal(myperiod)) */
-		mata: mynewvar = st_addvar("int", "missTimePoint")  // add a new var
-		mata: st_store((1, rows(myperiod)), mynewvar, myperiod) // fill in the new var
+		mata: mynewvar = st_addvar("int", "`missTimePoint'")
+		mata: st_store((1, rows(myperiod)), mynewvar, myperiod) // fill in the new var 
 		
 		*** change values to missing for observations with obsmiss == 1 for the
 		*** selected time period
 		qui forval i = 1/`=_N' {
 			if (`obsmiss'[`i'] == 1) {
-				local toMissing = missTimePoint[`i'] 
+				local toMissing = `missTimePoint'[`i'] 
 				foreach var of varlist _all {
 					replace `var' = . if _n == `i' & substr("`var'", `=length("`var'")', `=length("`var'")') == "`toMissing'"
 				}
@@ -315,7 +315,6 @@ program define ifeatsCore
 		qui replace `obsmiss' = 1 - `obsmiss' 
 		qui sum `obsmiss'
 		noi di in y "Complete cases in the dataset: `=`r(mean)' * 100'%"
-		drop missTimePoint  // replace with a temp var
 	}
 	
 	
@@ -450,8 +449,9 @@ program define ifeatsCore
 	}
 	*/
 
-	*** Replace the following with pchained!
 	
+	*** Replace the following with pchained!
+	*** USE PCHAINED HERE
 	
 	
 	/*
