@@ -9,9 +9,11 @@
 *
 
 
-clear all
+clear 
 set more off
 
+clear matrix 
+clear mata
 set maxvar 32000
 
 *** Point to directories
@@ -48,10 +50,11 @@ storedcorr  :  if simvcov(0) then location of stored empirical corrMat
 simmarginal :
 storedmarginal
 storedvars
+nwavemiss
 
 */
 
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.1) mblock(1) simcorr(0) ///
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.2) nwavemiss(1) mblock(1) simcorr(0) ///
         simmarginals(0) corrmatrix("`output_folder'/empirCorrMat.dta") /// 
 		marginals("`output_folder'")
 
