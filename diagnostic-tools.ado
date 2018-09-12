@@ -1,5 +1,5 @@
 ********************************************************************************
-*** Utility functions for diagnosing problems with the data
+*** Utility functions for identifying problems with the data
 *
 *
 *
