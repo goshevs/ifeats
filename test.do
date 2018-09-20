@@ -9,17 +9,15 @@
 *
 
 
-clear 
+clear all
 set more off
 
-clear matrix 
-clear mata
 set maxvar 32000
 
 *** Point to directories
-local data_folder "~/Desktop/imputations/data"
-local script_folder "~/Desktop/gitProjects/ifeats"
-local output_folder "~/Desktop/imputations/temp-data"
+local data_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+local script_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+local output_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
 
 
 *** Load data and programmes
@@ -50,11 +48,10 @@ storedcorr  :  if simvcov(0) then location of stored empirical corrMat
 simmarginal :
 storedmarginal
 storedvars
-nwavemiss
 
 */
 
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.2) nwavemiss(1) mblock(1) simcorr(0) ///
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.2 0.3) nwavemiss(0 1) simcorr(0) ///
         simmarginals(0) corrmatrix("`output_folder'/empirCorrMat.dta") /// 
 		marginals("`output_folder'")
 

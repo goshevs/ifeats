@@ -306,9 +306,6 @@ program define ifeatsCore
 			noi di in y "Complete cases in scale `scale': `=round(`r(mean)', .001) * 100'%" // QUESTION: Why do I need this? 
 		}
 		
-*************************
-*** Block random missing pattern
-			
 		else {
 		*** sample a nwithin item (i.e. the time period) to determine missing observations
 		tempvar obsmiss 
@@ -386,9 +383,3 @@ program define ifeatsCore
 	mat simmat[`rows', `cols'] = _rc
 
 end
-
-
-
-
-
-
