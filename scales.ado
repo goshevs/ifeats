@@ -30,7 +30,7 @@ program define catDist
 		*** Parse the scales string: scales(kzf=(numlist) hsclg=(numlist))
 		*** Retrieve scale name and scale levels from user input
 		if "`scales'" ~= "" {
-			parse_scales "`scales'"
+			parse_syntax "`scales'"
 		}
 
 		foreach scale of local namelist { //iterate over scales
@@ -129,20 +129,47 @@ program define catDist
 end
 
 	
-*** Parser of the user input for scale values
+*** Parser of the user input with multiple arguments of the type
+*** (sc1=(1(1)4) sc2=(0 2)) and variations
+capture program drop parse_syntax
+program define parse_syntax, sclass
+	args myinput type
+
+	local nlistex "[0-9]+\.?[0-9]*(\(?[0-9]+\.?[0-9]*\)?)?[ ]?([0-9]+\.?[0-9]*)?"
+	local strregex "[a-zA-Z0-9_-]+[ ]*=[ ]*\(?`nlistex'\)?"
+
+	while regexm("`myinput'", "`strregex'") {
+		local scale `=regexs(0)'
+		local myinput = trim(subinstr("`myinput'", "`scale'", "", .))
+		gettoken sname levs: scale, parse("=")
+		gettoken left levs: levs, parse("=")
+		local levs = trim("`levs'")
+		if regexm("`levs'", "`nlistex'") {
+			numlist "`=regexs(0)'"
+		}
+		sreturn local `sname'`type' `r(numlist)'
+	}
+end
+
+
+/*
+*** OLD PARSER
 capture program drop parse_scales
 program define parse_scales, sclass
 	args myscales
 	
+	sreturn clear
 	foreach scale of local myscales {
 		gettoken sname 0: scale, parse("=")
 		gettoken left levs: 0, parse("=")
+		di "`levs'"
 		local levs = substr("`levs'", 2, `=length("`levs'") - 2')
+		di "`levs'"
 		numlist "`levs'"
 		sreturn local `sname' `r(numlist)'
 	}
 end
-
+*/
 	
 *** Compare elements of lists and print elements that differ
 capture program drop compare_lists

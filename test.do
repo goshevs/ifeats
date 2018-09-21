@@ -8,22 +8,32 @@
 *
 *
 
-
 clear all
 set more off
 
 set maxvar 32000
 
-*** Point to directories
-local data_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
-local script_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
-local output_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+*** Point to directories depending on user
+if (c(username) == "goshev") {
+	local data_folder "~/Desktop/imputations/data"
+	local script_folder "~/Desktop/gitProjects/ifeats"
+	local output_folder "~/Desktop/imputations/temp-data"
+}
+else {
+	local data_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+	local script_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+	local output_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+}
 
 
 *** Load data and programmes
 use "`data_folder'/test-data", clear
-do "`script_folder'/scales.ado"
-do "`script_folder'/core-programs.ado"
+qui do "`script_folder'/scales.ado"
+qui do "`script_folder'/core-programs.ado"
+
+
+*** Load pchained from GitHub
+qui do "https://raw.githubusercontent.com/goshevs/pchained-github/master/pchained.ado"
 
 
 *** Create the cummulative distributions of all categorical items
@@ -51,16 +61,13 @@ storedvars
 
 */
 
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(0.2 0.3) nwavemiss(0 1) simcorr(0) ///
-        simmarginals(0) corrmatrix("`output_folder'/empirCorrMat.dta") /// 
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=0.2 hsclg=0.3)  simcorr(0) ///
+        simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
 		marginals("`output_folder'")
 
 exit	
 
-
-
-
-
+nwavemiss(kzf=(0 1) hsclg=(1 2)) mblock(kzf hsclg)
 
 *order _all, alpha
 *order levels, first
