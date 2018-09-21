@@ -339,7 +339,7 @@ program define ifeatsCore
 				*gen missTotal_`scale' = 1 - missing(`misslist')
 				*noi sum missTotal_`scale'
 				* noi di in y "Complete cases in scale `scale': `=round(`r(mean)', .001) * 100'%" // QUESTION: Why do I need this? 
-			
+			}
 		}
 		else { //Block random missing pattern
 			
@@ -420,23 +420,4 @@ program define ifeatsCore
 	mat simmat[`rows', `cols'] = _rc
 
 end
-
-
-** Parser for propmiss
-capture program drop parse_scales
-program define parse_scales, sclass
-	args myscales
-	
-	sreturn clear
-	foreach scale of local myscales {
-		gettoken sname 0: scale, parse("=")
-		gettoken left levs: 0, parse("=")
-		local levs = substr("`levs'", 2, `=length("`levs'") - 2')
-		numlist "`levs'"
-		sreturn local `sname' `r(numlist)'
-	}
-end
-
-
-
 
