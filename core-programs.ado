@@ -291,65 +291,112 @@ program define ifeatsCore
 
 	noi di _n in y "Introducing missingness... "
 		
-	*** Parse the syntax of nwavemiss propmiss
+	*** Parse the syntax of nwavemiss propmiss and store into locals
 	parse_syntax "`nwavemiss'" "_wmiss"  // nwavemiss(sc1=(1 3) sc2=(0 1))
-	parse_syntax "`propmiss'" "_pmiss"   // propmiss(sc1=0 sc2=0.2)
-	
+	parse_syntax "`propmiss'" "_pmiss"   // propmiss(sc1=(0.2 0.6) sc2=(0.2 0.5)) (item scale)
 	qui foreach scale of local namelist {
-		unab scale_items: `scale'*           // get scale item list
-		local sca_pmiss `s(`scale'_pmiss)'   // rate of missing per item for scale
-		local sca_wmiss `s(`scale'_wmiss)'   // waves missing (a list)
-		local sca_bmiss : list posof "`scale'" in mblock  // is scale block missing?
-		
-		if (`sca_bmiss' == 0) { // Random missing pattern
-			
+		local `scale'_pmiss `s(`scale'_pmiss)'   // rate of missing for an item and entire scale
+		local `scale'_wmiss `s(`scale'_wmiss)'   // waves missing (a list)
+		local `scale'_bmiss : list posof "`scale'" in mblock  // is scale block missing?
+	}
+	
+	qui foreach scale of local namelist { // loop over scales
+
+		unab scale_items: `scale'*
+		*** Check how many values entered in sca_pmiss; 
+		*** assign values to item and scale missingness
+		local nvals: list sizeof `scale'_pmiss
+		if (`nvals' == 2) { // random missing case
+			local itemMiss: word 1 of ``scale'_pmiss'
+			* noi di "`itemMiss'"
+			local scaleMiss: word 2 of ``scale'_pmiss'
+			* noi di "`scaleMiss'"
+		}
+		else if (`nvals' == 1) {  // block missing case 
+			local scaleMiss "``scale'_pmiss'"
+		}	
+		else {
+			noi di "Error: invalid number of values in propmiss"
+			exit
+		}
+
+		if (``scale'_bmiss' == 0) { // Block missing is 0: random missing pattern
+			noi di "   Missingness in scale `scale' is of random pattern"
 			*** if nwavemiss not specified by user --> missingness across all waves
-			if ("`nwavemiss'" == "") {
-				* local misslist ""
-				* tempvar missTotal
-				
-				foreach item of local scale_items {
-					replace `item' = . if runiform() <= `sca_pmiss'
-					* local misslist "`misslist', `item'"
+			if ("``scale'_wmiss'" == "") {
+				if ("`itemMiss'" == "") {
+					noi di "Error: item missigness is not specified"
+					exit
 				}
-				* noi misstable tree `scale_items'
-				* gen missTotal_`scale' = 1 - missing(`misslist')
-				* noi sum missTotal_`scale'
-				* noi di in y "Complete cases in scale `scale': `=round(`r(mean)', .001) * 100'%" // QUESTION: Why do I need this? 
-			}
-			else {  // wavemiss is specified by user 					
-				* local misslist ""
-				* tempvar missTotal
-				
-				*** build change list 
-				local varSubset ""
-				*foreach wave of local nwavemiss {
-				*	local varSubset "`varSubset' tp`wave'
-				*}
-				foreach item of local scale_items {
-					if regexm("`item'", "[0-9]+$") {
-						local mywave `=regexs(0)'
-						if (`:list posof "`mywave'" in sca_wmiss') {
-							noi di "`=regexs(0)'"
-							replace `item' = . if runiform() <= `sca_pmiss'
+				*** Loop over waves and create missing observations in items
+				forval i = 0/`=`nwitems' - 1' {   // loop over waves
+					*** this could be a function
+					tempvar missCases unifScale
+					gen `unifScale' = runiform()
+					sort `unifScale'
+					gen `missCases' = (_n <= `scaleMiss' * _N)
+					foreach item of local scale_items {
+						if regexm("`item'", ".+_tp`i'$") {
+							tempvar unif
+							gen `unif' = runiform() 
+							gsort -`missCases' `unif'
+							replace `item' = . if _n <= `itemMiss' * _N
 						}
 					}
 				}
-				* noi misstable tree `scale_items'
-				*gen missTotal_`scale' = 1 - missing(`misslist')
-				*noi sum missTotal_`scale'
-				* noi di in y "Complete cases in scale `scale': `=round(`r(mean)', .001) * 100'%" // QUESTION: Why do I need this? 
 			}
-		}
-		else { //Block random missing pattern
-			
-			*** TODO
-			
-			*** sample a nwithin item (i.e. the time period) to determine missing observations
-			tempvar obsmiss 
-			local obspropmiss = `nwitems' * `sca_pmiss'/`sca_wmiss' // By Zitong: I changed here 
-			gen `obsmiss' =(runiform() <= `obspropmiss')
-			
+			else {  // nwavemiss is specified by user 					
+				foreach i of local `scale'_wmiss {
+					* noi di "`i'"
+					tempvar missCases unifScale
+					gen `unifScale' = runiform()
+					sort `unifScale'
+					gen `missCases' = (_n <= `scaleMiss' * _N)
+					foreach item of local scale_items {
+						if regexm("`item'", ".+_tp`i'$") {
+							tempvar unif
+							gen `unif' = runiform() 
+							gsort -`missCases' `unif'
+							replace `item' = . if _n <= `itemMiss' * _N
+						}
+					}
+				}
+			}			
+		}  // end of random missing
+		
+		else { //Block random pattern of missingness
+			noi di "   Missingness in scale `scale' is of block random pattern"
+			*** if nwavemiss not specified by user --> missingness across all waves
+			if ("``scale'_wmiss'" == "") {
+				forval i = 0/`=`nwitems' - 1' {   // loop over waves
+					tempvar missCases unifScale
+					gen `unifScale' = runiform()
+					sort `unifScale'
+					gen `missCases' = (_n <= `scaleMiss' * _N)
+					foreach item of local scale_items {
+						if regexm("`item'", ".+_tp`i'$") {
+							replace `item' = . if `missCases' == 1
+						}
+					}
+				}
+			}
+			else {  // time periods of missingness are specified by user in nwavemiss
+				foreach i of local `scale'_wmiss {
+					tempvar missCases unifScale
+					gen `unifScale' = runiform()
+					sort `unifScale'
+					gen `missCases' = (_n <= `scaleMiss' * _N)
+					foreach item of local scale_items {
+						if regexm("`item'", ".+_tp`i'$") {
+							replace `item' = . if `missCases' == 1
+						}
+					}
+				}
+			}
+		} // end of block missing
+
+		/* We no longer need this --> simplified syntax used above   --------->
+
 			*** sample the time periods that would be missing  for each observation 
 			*** and create a set of new variables that contain the periods for which obs is missing
 
@@ -381,7 +428,10 @@ program define ifeatsCore
 		qui sum `obsmiss'
 		noi di in y "Complete cases in the dataset: `=round(`r(mean)', .001) * 100'%"
 		drop missTime?Point `obsmiss'		
-		} // End of "else: with block missing"		
+		} // End of "else: with block missing"	
+		
+		<------------------------------ */
+		
 	} // End of loop through namelist
 	
 
@@ -392,7 +442,7 @@ program define ifeatsCore
 	*** Reshape dataset to long and change var names
 	local allItemsReshape ""
 	foreach var of varlist _all {
-		local stub = substr("`var'", 1, `=length("`var'") - 1')
+		local stub = substr("`var'", 1, `=length("`var'") - 1') //hard coded, need to change!!!
 		local allItemsReshape "`allItemsReshape' `stub'"
 	}
 	local allItemsReshape: list uniq allItemsReshape
@@ -401,7 +451,7 @@ program define ifeatsCore
 	qui reshape long `allItemsReshape', i(id) j(time)
 	
 	qui foreach var of varlist *_tp {
-		ren `var' `=substr("`var'", 1, `=length("`var'") - 3')'
+		ren `var' `=substr("`var'", 1, `=length("`var'") - 3')'  // hard coded, need to change!!!
 	}
 	
 	********************************************************************************
@@ -410,7 +460,7 @@ program define ifeatsCore
 	
 	*** Impute; run -pchained-
 	noi di _n in y "Imputing with pchained..."
-	capture pchained `namelist', p(id) t(time) mio("add(1) burnin(10) chaindots ")
+	capture noisily pchained `namelist', p(id) t(time) mio("add(1) burnin(10) chaindots ")
 	
 	if _rc ~= 0 {
 		noi di in r "Failed"
