@@ -19,10 +19,12 @@ if (c(username) == "goshev") {
 	local script_folder "~/Desktop/gitProjects/ifeats"
 	local output_folder "~/Desktop/imputations/temp-data"
 }
+
 else {
-	local data_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+	local data_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats_old"
 	local script_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
-	local output_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats"
+	local output_folder "/Users/zitongliu/Dropbox/2018/BTProject/ifeats_old"
+	cd "`output_folder'"
 }
 
 
@@ -61,9 +63,10 @@ storedvars
 
 */
 
+
 ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=0.2 hsclg=0.3)  simcorr(0) ///
-        simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
-		marginals("`output_folder'")
+       simmarginals(1)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
+	   marginals("`output_folder'")   simscales(kzf=(0(1)4) hsclg=(1(1)4)) 
 
 exit	
 
