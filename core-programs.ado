@@ -29,8 +29,9 @@ program define dataCorrMat
 		
 		** Save the matrix
 		mat dcorr = r(Rho)
-			
-		*** fudge the correlation matrix (change missing to 0)
+		local mynames: colnames dcorr
+		
+		*** doctor the correlation matrix (change missing to 0)
 		mata: fixed = editmissing(st_matrix("dcorr"), 0)
 		mata: _diag(fixed, 1)
 		mata: st_matrix("dcorr", fixed)
@@ -38,7 +39,17 @@ program define dataCorrMat
 		** Save the correlation matrix
 		preserve
 		clear
+		
 		svmat dcorr
+		
+		local counter = 1
+		foreach var of varlist _all {
+			* noi di "`: word `counter' of `mynames''"
+			* noi di "`var'"
+			ren `var' `: word `counter' of `mynames''
+			local ++counter
+		}
+		
 		save `saving', replace
 		restore
 		
@@ -72,16 +83,16 @@ capture program drop gencombined
 program define gencombined, rclass
 
 syntax, [corw(real 1) corb(real 1) corbs(real 1) ///
-			nWithinItems(string) nwitems(integer 3) nTotalItems(integer 12)]
+			nWithinItems(string) nwaves(integer 3) nTotalItems(integer 12)]
 
 *	args dimw corw dimb corb
 	mat fullcorr = J(`nTotalItems', `nTotalItems', `corbs')
 	forval k = 1/`: word count `nWithinItems'' { // Loop over scales
 	mat mybetween = J(`:word `k' of `nWithinItems'', `:word `k' of `nWithinItems'', `corb')
-	genwithin `nwitems' `nwitems'
+	genwithin `nwaves' `nwaves'
 	mat within = r(within)
-	forval i = 1(`nwitems')`: word count `nWithinItems'' {
-		forval j = 1(`nwitems')`: word count `nWithinItems'' {
+	forval i = 1(`nwaves')`: word count `nWithinItems'' {
+		forval j = 1(`nwaves')`: word count `nWithinItems'' {
 			if (`i'==`j') {
 				mat mybetween[`i', `j'] = within
 			}
@@ -113,138 +124,93 @@ end
 
 **** Ask this super large question: Should we use temp files? Anyway we need the long variable names list. 
 
-capture program drop genunimarginals
-program define genunimarginals, rclass
+capture program drop _genMarg
+program define _genMarg, rclass
 
-		syntax namelist, [scales(string)]
+	syntax namelist, scales(string) nwaves(string) nItems(string)
 	
-	noi di "(Generating Uniform Distributions for `namelist')" // Zitong: Start from uniform case
-
 	qui{
-	
-		local nscales: word count `namelist'
-
 		*** Parse the scales string: scales(kzf=(numlist) hsclg=(numlist))
 		*** Retrieve scale name and scale levels from user input
-		
-		if "`scales'" == ""{
-		**** This part does not make much sense because there are 2 choices: use label or use the "empirical" levels from data. 
-		**** Label has the problem of missing value label and empirical thing is just "empirical". Difficult to explain. 
-		**** Leave to discuss with Simo
-		**** Maybe we just change the option of "simmarginal" and "simscales" to one, string option. 
-		**** If you want to simmulate, then you need to give me at least how many categories you want to use. 
-
-		
-		noi di "No User-defined Scale Patterns. Use Scale Levels from Data. "
-		
-		foreach scale of local namelist { //iterate over scales
-			unab scale_items: `scale'*
-			
-			*** Retrieve levels from label
-			local labname: value label `: word 1 of `scale_items''
-			local labs ""
-			if "`labname'" ~= "" {
-				mata: values = .; text = ""
-				mata: st_vlload("`labname'", values, text); _transpose(values)
-				mata: st_local("labs", invtokens(strofreal(values)))
-			} 
-			
-				
-			*** Retrieve levels from items
-			local catsData ""
-			foreach item of local scale_items { // iterate over items of a scale
-				qui levelsof `item', local(levs) 
-				local catsData: list catsData | levs // keep the union of the lists
-			} // This is a little bit empirical. I put it here but I didn't use it. 
-			
-			
-			
-		} // End of loop over scales
-		} // End of no user-option case
-		
-		if "`scales'" ~= ""{
-		**** Better case. The user will give how many categories they want to use. 
-		**** And we always follow the user categories. 
-		**** It's good to report how the difference here, because it provides the user information about the "empirical" part. 
-		
-		noi di "User-defied Scale Pattern will be used. "
 		parse_syntax "`scales'" // Parsed result can by EACH stubs		
-		}
 		
-		foreach scale of local namelist { //iterate over scales
-			unab scale_items: `scale'*
-			
-			*** Retrieve levels from label
-			local labname: value label `: word 1 of `scale_items''
-			local labs ""
-			if "`labname'" ~= "" {
-				mata: values = .; text = ""
-				mata: st_vlload("`labname'", values, text); _transpose(values)
-				mata: st_local("labs", invtokens(strofreal(values)))
-			}
-			
-				
-			*** Retrieve levels from items
-			local catsData ""
-			foreach item of local scale_items { // iterate over items of a scale
-				qui levelsof `item', local(levs) 
-				local catsData: list catsData | levs // keep the union of the lists
-			}
-
-			noi di _n in y "****************************************" ///
-			_n      "** Scale `scale' " ///
-			_n      "****************************************"
-			
-			if "`labs'" ~= "" {
-			
-				*** Compare LABELs with user input
-				local userInput "`s(`scale')'"
-				compare_lists "`labs'" "`userInput'"
-						
-				if "`s(differences)'" == "" {
-					noi di in y "LABELS: user input matches label information."
-				}
-				else {
-					noi di in y "LABELS: label values are DIFFERENT from user input. " ///
-					_n "    Differences are: `s(differences)'" /// 
-					_n "    Using user input"
-				}
-			}
-			
-			*** Compare ITEM CATS with user input
-			compare_lists "`catsData'" "`userInput'"
-			
-			if "`s(differences)'" == "" {
-				noi di in y "DATA: user input matches categories in items."
-			}
-			else {
-				noi di in y "DATA: item categories are DIFFERENT from user input. " ///
-				_n "    Differences are: `s(differences)'" /// 
-				_n "    Using user input"
-			}
-			
-			
-			* count how many items i have. Create a matrix with this many columns. 
-			
+		*****
+		local scalePos = 1
+		foreach scale of local namelist { //iterate over scales	
+			local userInput "`s(`scale')'"		
 			local nCats: list sizeof userInput
-			local marg_prob = 1/ `nCats'
-			local nScales: list sizeof scale_items
+			local marg_prob = 1/`nCats'
+			local nScales `=`: word `scalePos' of `nItems''*`nwaves''
 			mata: mat_marg = J(strtoreal(st_local("nCats")), strtoreal(st_local("nScales")),100 * strtoreal(st_local("marg_prob"))- 1e-5)
 			mata: mat_cd = mm_colrunsum(mat_marg)
 			mata: st_matrix("mat_cd", mat_cd) 
-		return matrix `scale'_cd = mat_cd // Return a matrix for every stub in the "namelist"		
-	} 
-} // End of qui
+			return matrix `scale'_cd = mat_cd // Return a matrix for every stub in the "namelist"	
+			local ++scalePos
+		}
+		
+	}
 end
 
 
+capture program drop _extractInfo // retrieve number of items and waves
+program define _extractInfo, sclass
 
+	args namelist nwaves scale
+	
+	unab allVars: _all
+	
+	*** retrieve number of time periods
+	if ("`nwaves'" == "-1") {
+		local nWaves ""
+		foreach var of local allVars {	
+			local uTime = regexr("`var'", "^[a-zA-Z0-9]+_tp", "")
+			local nWaves "`nWaves' `uTime'"
+		}
+		local nWaves: list uniq nWaves
+		local nwaves "`: list sizeof nWaves'"
+	}
+	
+	*** get the stubs from the marginals matrix	
+	local uStubs ""
+	foreach var of local allVars {	
+		local uItem = regexr("`var'", "[0-9]+_tp[0-9]+$", "")
+		local uStubs "`uStubs' `uItem'"
+		
+	}
+	local uStubs: list uniq uStubs
+	
+	*** check whether stubs in namelist are present in corrmat stubs
+	if ("`scale'" == "") {
+		local nItems ""
+		foreach scale of local namelist {
+			if "`: list scale in uStubs'" ~= "" {
+				unab `scale'_items: `scale'*
+				local nItems "`nItems' `=`: list sizeof `scale'_items'/`nwaves''"
+			}
+			else {  // assume that all stubs should be present (we do not allow here for simulating some items)
+				noi di "Stub not found in correlation matrix"
+				exit 1000
+			}
+		}
+	}
+	else {
+		if "`: list scale in uStubs'" ~= "" {
+			unab `scale'_items: `scale'*
+			local nItems "`=`: list sizeof `scale'_items'/`nwaves''"
+		}
+		else {  // assume that all stubs should be present (we do not allow here for simulating some items)
+			noi di "Stub not found in correlation matrix"
+			exit 1000
+		}
+	}
+	
+	sreturn local nItems "`nItems'"
+	sreturn local nwaves "`nwaves'"
 
+end
 
-
-
-
-
+				
+				
 ********************************************************************************
 *** Simulation programme
 
@@ -259,73 +225,120 @@ end
 capture program drop ifeats
 program define ifeats, rclass
 	
-	syntax namelist, Nobs(numlist) /// 
-	       [NWitems(integer 3) NTitems(integer 12) propmiss(string) nwavemiss(string) /// 
-		    MBlock(namelist) SIMCorr(integer 0) SIMMarginals(integer 0) SIMScales(string) ///
-			CORRMatrix(string) MARGinals(string)]
+	syntax namelist, Nobs(numlist) scales(string) /// 
+	       [nwaves(integer -1) nitems(string)  ///
+		    propmiss(string) wavemiss(string) /// 
+		    CORRMatrix(string) MARGinals(string)]
 	
 	
-	* nwavemiss(numlist) --> numlist per scale!
-	* MBlock(namelist) --> scales with block missingness
-	* propmiss(numlist) --> per scale proportion of missing
-	* Zitong: simScales(string) --> the same thing as scales option in catDist
+	* scales --> scales(sc1=(0(1)4) sc2=(0(1)4)): item levels of scales
+	* nwaves(integer) --> number of waves/time periods
+	* nitems(string) --> nitems(sc1=12 sc2=36): number of items per scale
+	* propmiss(string) --> propmiss(kzf=(0.05 0.2) hsclg=(0.05 0.3)): for random missing (item missigness; scale missingness)
+	*                      propmiss(kzf=(0.2) hsclg=(0.3)): for block missing (scale missingness)
+	* wavemiss(sring)  --> wavemiss(kzf=(0 1) hsclg=(1 2)): waves missing for every scale
+	* corrmatrix(string) --> path and name of file containing correlation matrix for scales in namelist
+	* marginals(string) --> path to directory containing files of marginal distributions for scales in namelist
 	
 	
-	*** Total number of items
-	local nTotalItems = 0
-	local nWithinItems ""
-	foreach scale of local namelist {
-		unab `scale'_items: `scale'*
-		local nItems: list sizeof `scale'_items 
-		local nWithinItems `macval(nWithinItems)' `macval(nItems)' // by Zitong: Add a counter for within items
-		local nTotalItems = `nTotalItems' + `nItems'
-		local itemNames = "`itemNames'" + " ``scale'_items'" 
-	}
-	
+	if "`marginals'" == "" local simmarg "1"
+	if "`corrmatrix'" == "" local simcorr "1"
 
-	/* Written by Simo: 
-	if (`nwavemiss' >= `nwitems') {
-		noi di in r "Number of missing timepoints should be smaller than the total number of timepoints"
-		exit 618
+	**** Check for existing data
+	if ("`nitems'" == "") { // if number of items per scale is not specified
+		local nameList ""
+		foreach var of local namelist {
+			local nameList "`nameList' `var'*"
+		}
+		* noi di "`nameList'"
+		capture unab allItems: `nameList'
+		if (_rc == 0) {                           // get info from memory
+			noi di in y "Using variables in dataset loaded in memory"
+			
+			*** retrieve number of time periods if not specified
+			if ("`nwaves'" == "-1") {
+				local nWaves ""
+				foreach item of local allItems {
+					local uTime = regexr("`item'", "^[a-zA-Z0-9]+_tp", "")
+					local nWaves "`nWaves' `uTime'"
+				}
+				local nWaves: list uniq nWaves
+				local nwaves "`: list sizeof nWaves'"
+			}
+	
+			local nItems ""
+			foreach scale of local namelist {
+				unab `scale'_items: `scale'*
+				local nItems "`nItems' `=`: list sizeof `scale'_items'/`nwaves''"
+			}
+			
+	
+		}
+		else if (_rc ~= 0) {                 // if no such stubs in the dataset
+			if ("`corrmatrix'" ~= "") {      // check correlation matrix if given
+				noi di in y "Using the correlation matrix"
+				preserve
+				use "`corrmatrix'", clear
+				_extractInfo "`namelist'" "`nwaves'"
+				
+				local nItems "`s(nItems)'"
+				local nwaves "`s(nwaves)'"
+				
+				restore
+			}
+			else if ("`marginals'" ~= "") {   // check marginals if given
+				noi di in y "Using the marginal distribution(s)"
+				preserve
+				local nItems ""
+				foreach scale of local namelist {
+					use "`marginals'/`scale'_cdist", clear
+					_extractInfo "1" "`nwaves'" "`scale'"
+					local nItems "`nItems' `s(nWithinItems)'"
+				}
+				local nwaves "`s(nwaves)'"
+				restore
+			}	
+			else {
+				noi di in y "No dataset in memory, no correlation matrix or marginals given" 
+				if "`nwaves'" == "-1" | "`nitems'" == "" {
+					no di in r "Arguments nwaves and nitems are required in this case"
+					exit 1000
+				}
+			}
+		}
+		* noi di "`nItems'"
+		* noi di "`nwaves'"
 	}
-	*/ 
-	**** Zitong: Let's deal with simulating marginal distributions before clear the dataset. 
-	**** Work here: 
+	if ("`simmarg'" ~= "") { 	
+		*** Create even distribution. 
 	
-	**** I need to follow catdist and define the categorical names etc. 
+		noi di _n in y "****************************************" ///
+		_n "Simulating Marginal Distribution(s)" ///
+		_n "****************************************"
 	
-	if `simmarginals' == 1 { 	
-	*** Create even distribution. 
+		noi di "(Generating Uniform Distributions for `namelist')"
+		_genMarg `namelist', scales(`scales') nwaves(`nwaves') nItems(`nItems')
 	
-	noi di _n in y "****************************************" ///
-	_n "(Use Simulated Marginal Distribution)" ///
-	_n "****************************************"
-	
-	genunimarginals `namelist', scales(`simscales')
-	
-	foreach scale of local namelist {
-		mat `scale'_cd = r(`scale'_cd)
+		*** loading the matrices -- may not need to this here
+		foreach scale of local namelist {
+			mat `scale'_cd = r(`scale'_cd)
 		}
 	}
-
-		* capture unab `storedvars':  `storedvars'
-		* qui scaleclean `storedvars' 
 	
-		mat simmat = J(1, `: word count `nobs'', .)
-		local rows = 1
-		local cols = 1
-		foreach lobs of local nobs {
-			ifeatsCore,  nobs(`lobs')  corb(1) cols(`cols') rows(`rows') nwitems(`nwitems')  ///
-			corw(1) propmiss(`propmiss')  nwavemiss(`nwavemiss') simcorr(`simcorr')  simmarginals(`simmarginals') simscales("`simscales'") ///
-			corrmatrix("`corrmatrix'")  marginals("`marginals'") namelist("`namelist'") nTotalItems(`nTotalItems') ///
-			mblock(`mblock') nWithinItems(`nWithinItems') corbs(1) itemlist("`itemNames'")
+	* capture unab `storedvars':  `storedvars'
+	* qui scaleclean `storedvars' 
+	mat simmat = J(1, `: word count `nobs'', .)
+	local rows = 1
+	local cols = 1
+	foreach lobs of local nobs {
+		ifeatsCore,  namelist("`namelist'") nobs(`lobs')  corb(1) cols(`cols') rows(`rows') nwaves(`nwaves') nItems("`nItems'") ///
+		corw(1)  corbs(1) propmiss(`propmiss') wavemiss(`wavemiss') simcorr(`simcorr')  simmarg(`simmarg')  ///
+		corrmatrix("`corrmatrix'")  marginals("`marginals'") scales("`scales'") itemlist("`itemNames'")
 
-			local ++cols // Needs revision: propmiss, nwavemiss
-		}
+		local ++cols // Needs revision: propmiss, wavemiss
+	}
 		
-		* Need to revise the simscales part, set some default for it 
-		
-	
+	* Need to revise the simscales part, set some default for it 
 end
 
 
@@ -333,15 +346,18 @@ end
 capture program drop ifeatsCore
 program define ifeatsCore
  
-* 	args nobs corb cols rows nwitems corw propmiss mblock simcorr simmarginals corrmatrix marginals namelist nTotalItems nwavemiss
+* 	args nobs corb cols rows nwaves corw propmiss mblock simcorr simmarginals corrmatrix marginals namelist nTotalItems wavemiss
 
-	syntax, [nobs(integer 1)  corb(real 1) cols(integer 1) rows(integer 1) nwitems(integer 3) ///
-	corw(real 1) corbs(real 1) propmiss(string) nwavemiss(string) simcorr(integer 0) simmarginals(integer 0) ///
-	corrmatrix(string) marginals(string) namelist(string) nTotalItems(integer 0) mblock(string) ///
-	nWithinItems(string) simscales(string) itemlist(string)] // Zitong: Tricky! Need revision!!!
-/*
+	syntax, [namelist(string) nobs(integer 1) corb(real 1) cols(integer 1) rows(integer 1) nwaves(integer -1) nItems(string) ///
+			 corw(real 1) corbs(real 1) propmiss(string) wavemiss(string) simcorr(string) simmarg(string) ///
+			 corrmatrix(string) marginals(string) scales(string) itemlist(string)]
+
+	
+	/*
+	These need to be updated and streamlined
+	
 	local nobs    = `lobs'     // data has 64
-	local nwitems = 3         // number of time periods
+	local nwaves = 3         // number of time periods
 	local ntitems = 33        // time periods * number of indicators
 	local corw    = 0.9       // within item correlation (over time)
 	local corb    = `lcorb'   // between item correlation
@@ -349,7 +365,7 @@ program define ifeatsCore
 	local mblock  = 1         // block missing (boolean)
 	local simvcov = 1         // simulate vcov or use data vcov (boolean)
 	local propmiss 			 // missing rate for your stubs
-	local nwavemiss 		 // How many blocks are missing, if non block missing, put a zero
+	local wavemiss 		 // How many blocks are missing, if non block missing, put a zero
 	local corbs = 			// between scale correlation  (By Zitong: I think this is usually assumed to 0, while I'm not sure)
 	local itemlist 			// A very long string passed to ifeatsCore. I'm not sure about the robustness of this arugment. 
 
@@ -359,12 +375,12 @@ program define ifeatsCore
 	qui set obs `nobs'
 	
 	
-	**** Need change the display command.
-	if `simcorr' == 1 {
+	**** Display basics
+	if ("`simcorr'" == "1") {
 		noi di _n in y "************************************************************"
 		noi di in y    "* Sample size        : " `nobs'
-		noi di in y    "* Within correlation : " `corw'
-		noi di in y    "* Between-Item, Within-Scale correlation: " `corb'
+		noi di in y    "* Within-item correlation (over waves): " `corw'
+		noi di in y    "* Between-item, Within-scale correlation: " `corb'
 		noi di in y	   "* Between-scale correlation: " `corbs'	
 		noi di in y    "************************************************************"
 	}
@@ -381,22 +397,26 @@ program define ifeatsCore
 
 	********************************************************************************
 	*** Define means and correlation
+		
+	local nTotalItems `=`=(`=subinstr("`nItems'", " ", "+",.)')' * `nwaves''
 	
 	genmeans "`nTotalItems'"
 	mat means = r(means)	
+
 	
 	noi di "Simulating data..."
-	
-	if `simcorr' == 1 {	
+	*  HAVE TO FIX THIS --->
+	if ("`simcorr'" ~= "") {	  // TODO
 		noi di "(Simulated correlation matrix)"
 		noi di "my nwithinitems: `nWithinItems'"
 
 		gencombined, corw(`corw') corb(`corb') corbs(`corbs') ///
-			nWithinItems("`nWithinItems'") nwitems(`nwitems') nTotalItems(`nTotalItems') 
+			nWithinItems("`nWithinItems'") nwaves(`nwaves') nTotalItems(`nTotalItems') 
 		mat rho = r(combined)
 		
-	}
-	else {
+	} 
+	* <---- 
+	else { // load matrix of empirical correlations
 		preserve
 		use "`corrmatrix'", clear
 		mkmat _all, matrix(rho)
@@ -405,42 +425,42 @@ program define ifeatsCore
 	}
 	
 	*** Simulate random normal data using the (empirical) distributions and corr mat
-	drawnorm myvar1-myvar`nTotalItems', means(means) corr(rho) n(`=_N') // Zitong: I change the location of this command. 
-	
-
-	
-	if `simmarginals' == 1 {
-		**** by Zitong: set default to even distribution. 
-
-		* Generate the items using r(`scale'_cd).
-
-		local i = 1
-		qui foreach scale of local namelist{
-		local `scale'_items ""
+	drawnorm myvar1-myvar`nTotalItems', means(means) corr(rho) n(`=_N')
 		
-		foreach name of local itemlist {
-		if strpos("`name'", "`scale'") {
-		local `scale'_items : list  `scale'_items | name
-		}
-		} // Zitong: Tricky! Need revision!!!
+	if ("`simmarg'" ~= "") {  // simluated marginals
 
-		
-		local matcol = 1
+		*** Generate the item names
+		local scalePos = 1	
+		local j = 1
+		qui foreach scale of local namelist { //iterate over scales	
+			local `scale'_items ""
+			local items: word `scalePos' of `nItems'
+			forval i = 1/`items' {
+				forval t = 0/`=`nwaves' - 1' {		
+					if (`i' < 10) {
+						local sItem "`scale'0`i'_tp`t'"
+					}
+					else {
+						local sItem "`scale'`i'_tp`t'"
+					}
+					local `scale'_items "``scale'_items' `sItem'" 
+				}
+			}
+			*** Apply the distribution to the latent variable to create cat vars
+			local matcol = 1
 			foreach item of local `scale'_items {
 				mata: mat_ph = st_matrix("`scale'_cd")[1...,`matcol'..`matcol']
 				mata: _transpose(mat_ph)
 				mata: st_local("pctiles", invtokens(strofreal(mat_ph,"%12.10g")))
-				egen `item' = xtile(myvar`i'), percentiles(`pctiles') // this requires egenmore
+				egen `item' = xtile(myvar`j'), percentiles(`pctiles') // this requires egenmore
 				replace `item' = `item' - 1
-				drop myvar`i'
+				drop myvar`j'
 				local ++matcol
-				local ++i
-				
+				local ++j
+			}
+			local ++scalePos
 		}
-		}
-	} // End of if simmarginals == 1
-	
-
+	} // end of if
 	
 	else { // Use observed marginals 	
 		*** Read in scale_cdist's as matrices
@@ -480,20 +500,20 @@ program define ifeatsCore
 			}
 		}
 	}
-	* sum
+	* sum	
 	********************************************************************************
 	** Introduce missingness
 	********************************************************************************
 
 	noi di _n in y "Introducing missingness... "
 		
-	*** Parse the syntax of nwavemiss propmiss and store into locals
-	parse_syntax "`nwavemiss'" "_wmiss"  // nwavemiss(sc1=(1 3) sc2=(0 1))
+	*** Parse the syntax of wavemiss propmiss and store into locals
+	parse_syntax "`wavemiss'" "_wmiss"  // wavemiss(sc1=(1 3) sc2=(0 1))
 	parse_syntax "`propmiss'" "_pmiss"   // propmiss(sc1=(0.2 0.6) sc2=(0.2 0.5)) (item scale)
 	qui foreach scale of local namelist {
 		local `scale'_pmiss `s(`scale'_pmiss)'   // rate of missing for an item and entire scale
 		local `scale'_wmiss `s(`scale'_wmiss)'   // waves missing (a list)
-		local `scale'_bmiss : list posof "`scale'" in mblock  // is scale block missing?
+		*local `scale'_bmiss : list posof "`scale'" in mblock  // is scale block missing?
 	}
 	
 	qui foreach scale of local namelist { // loop over scales
@@ -510,38 +530,41 @@ program define ifeatsCore
 		}
 		else if (`nvals' == 1) {  // block missing case 
 			local scaleMiss "``scale'_pmiss'"
+			local `scale'_bmiss = 1
 		}	
-		else {
-			noi di "Error: invalid number of values in propmiss"
-			exit
+		else { // error
+			noi di "Error: have to specify at least one value per scale in propmiss"
+			exit 1000
 		}
 
-		if (``scale'_bmiss' == 0) { // Block missing is 0: random missing pattern
+		if ("``scale'_bmiss'" == "") { // Block missing is 0: random missing pattern
 			noi di "   Missingness in scale `scale' is of random pattern"
-			*** if nwavemiss not specified by user --> missingness across all waves
+			*** if wavemiss not specified by user --> missingness across all waves
 			if ("``scale'_wmiss'" == "") {
 				if ("`itemMiss'" == "") {
-					noi di "Error: item missigness is not specified"
-					exit
+					noi di "Error: item missigness should be specified"
+					exit 1000
 				}
-				*** Loop over waves and create missing observations in items
-				forval i = 0/`=`nwitems' - 1' {   // loop over waves
-					*** this could be a function
-					tempvar missCases unifScale
-					gen `unifScale' = runiform()
-					sort `unifScale'
-					gen `missCases' = (_n <= `scaleMiss' * _N)
-					foreach item of local scale_items {
-						if regexm("`item'", ".+_tp`i'$") {
-							tempvar unif
-							gen `unif' = runiform() 
-							gsort -`missCases' `unif'
-							replace `item' = . if _n <= `itemMiss' * _N
+				else {
+					*** Loop over waves and create missing observations in items
+					forval i = 0/`=`nwaves' - 1' {   // loop over waves
+						*** this could be a function
+						tempvar missCases unifScale
+						gen `unifScale' = runiform()
+						sort `unifScale'
+						gen `missCases' = (_n <= `scaleMiss' * _N)
+						foreach item of local scale_items {
+							if regexm("`item'", ".+_tp`i'$") {
+								tempvar unif
+								gen `unif' = runiform() 
+								gsort -`missCases' `unif'
+								replace `item' = . if _n <= `itemMiss' * _N
+							}
 						}
 					}
 				}
 			}
-			else {  // nwavemiss is specified by user 					
+			else {  // wavemiss is specified by user 					
 				foreach i of local `scale'_wmiss {
 					* noi di "`i'"
 					tempvar missCases unifScale
@@ -562,9 +585,9 @@ program define ifeatsCore
 		
 		else { //Block random pattern of missingness
 			noi di "   Missingness in scale `scale' is of block random pattern"
-			*** if nwavemiss not specified by user --> missingness across all waves
+			*** if wavemiss not specified by user --> missingness across all waves
 			if ("``scale'_wmiss'" == "") {
-				forval i = 0/`=`nwitems' - 1' {   // loop over waves
+				forval i = 0/`=`nwaves' - 1' {   // loop over waves
 					tempvar missCases unifScale
 					gen `unifScale' = runiform()
 					sort `unifScale'
@@ -576,7 +599,7 @@ program define ifeatsCore
 					}
 				}
 			}
-			else {  // time periods of missingness are specified by user in nwavemiss
+			else {  // time periods of missingness are specified by user in wavemiss
 				foreach i of local `scale'_wmiss {
 					tempvar missCases unifScale
 					gen `unifScale' = runiform()
@@ -591,8 +614,8 @@ program define ifeatsCore
 			}
 		} // end of else
 	} // End of loop through namelist
-	
 
+	
 	********************************************************************************
 	** Prepare data for imputation
 	********************************************************************************
@@ -600,25 +623,29 @@ program define ifeatsCore
 	*** Reshape dataset to long and change var names
 	local allItemsReshape ""
 	foreach var of varlist _all {
-		local stub = substr("`var'", 1, `=length("`var'") - 1') //hard coded, need to change!!!
-		local allItemsReshape "`allItemsReshape' `stub'"
+		if !regexm("`var'", "^__[0-9]+.$") {  //use this to filter out tempvars
+			local stub = regexr("`var'", "_tp[0-9]+$", "_tp")
+			local allItemsReshape "`allItemsReshape' `stub'"
+		}
 	}
 	local allItemsReshape: list uniq allItemsReshape
-		
+	noi di "`allItemsReshape'"
+
+	
 	qui gen id = _n
 	qui reshape long `allItemsReshape', i(id) j(time)
 	
 	qui foreach var of varlist *_tp {
 		ren `var' `=substr("`var'", 1, `=length("`var'") - 3')'  // hard coded, need to change!!!
 	}
-	
+		
 	********************************************************************************
 	** Impute
 	********************************************************************************
 	
 	*** Impute; run -pchained-
 	noi di _n in y "Imputing with pchained..."
-	capture noisily pchained `namelist', p(id) t(time) mio("add(1) burnin(10) chaindots ")
+	capture noisily pchained `namelist', p(id) t(time) mio(add(1) burnin(10) chaindots)
 	
 	if _rc ~= 0 {
 		noi di in r "Failed"

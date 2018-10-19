@@ -39,11 +39,10 @@ qui do "https://raw.githubusercontent.com/goshevs/pchained-github/master/pchaine
 
 
 *** Create the cummulative distributions of all categorical items
-* catDist kzf hsclg, scales(kzf=(0(1)4) hsclg=(1(1)4)) saving("`output_folder'")
+*catDist kzf hsclg, scales(kzf=(0(1)4) hsclg=(1(1)4)) saving("`output_folder'")
 
 *** Obtain the empirical correlation matrix of the data
 * dataCorrMat kzf hsclg, saving("`output_folder'/empirCorrMat.dta") 
-
 
 
 /*
@@ -63,16 +62,94 @@ storedvars
 */
 
 *** Using observed distributions
+/*
 ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1))  simcorr(0) ///
         simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
 		marginals("`output_folder'")  mblock(kzf hsclg) nwavemiss(kzf=(0 1) hsclg=(1 2))
 
+
+*** NEW Syntax (no mblock)
+*** Random pattern (2 values in propmiss)
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(111) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1))  simcorr(0) ///
+        simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
+		marginals("`output_folder'") nwavemiss(kzf=(0 1) hsclg=(1 2))
+
+*** Block pattern (1 value in propmiss)
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=0.3 hsclg=0.05)  simcorr(0) ///
+        simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
+		marginals("`output_folder'") nwavemiss(kzf=(0 1) hsclg=(1 2))
+
+		
+		
+		
+		
+		
 *** Simulating
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=0.2 hsclg=0.3)  simcorr(0) ///
+ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=(0.05 0.2) hsclg=(0.05 0.3))  simcorr(0) ///
        simmarginals(1)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
-	   marginals("`output_folder'")   simscales(kzf=(0(1)4) hsclg=(1(1)4)) 		
-		
-		
+	   marginals("`output_folder'") simscales(kzf=(0(1)4) hsclg=(1(1)4))
+	   
+*/
+
+
+
+* catDist kzf, scales(kzf=(0(1)4)) saving("`output_folder'")
+* dataCorrMat kzf hsclg, saving("`output_folder'/empirCorrMatKZF.dta") 
+ 
+ /*
+ifeats, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2)) ///
+       corrm("`output_folder'/empirCorrMatKZF.dta") /// 
+	   marg("`output_folder'") scales(kzf=(0(1)4) hsclg=(0(1)4))
+
+	*/
+
+/*
+ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2)) ///
+       corrm("`output_folder'/empirCorrMat.dta") /// 
+	   marg("`output_folder'") scales(kzf=(0(1)4) hsclg=(0(1)4))
+
+exit
+	*/
+	
+
+clear
+ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2) hsclg=(0.3)) ///
+	   corrm("`output_folder'/empirCorrMat.dta") /// 
+	   scales(kzf=(0(1)4) hsclg=(0(1)4))
+exit
+   
+clear
+
+ifeats kzf hsclg, nobs(500(500)1000) propmiss(kzf=(0.05 0.2)) ///
+       marg("`output_folder'/") scales(kzf=(0(1)4) hsclg=(0(1)4))
+
+clear
+*/
+clear
+
+ifeats kzf hsclg, nobs(500(500)1000) propmiss(kzf=(0.05 0.2)) ///
+       scales(kzf=(0(1)4) hsclg=(0(1)4))
+	   
+	   
+exit
+	 
+ifeats kzf hsclg, nobs(500(500)1000) propmiss(kzf=(0.05 0.2)) ///
+       corrm("`output_folder'/empirCorrMat.dta") /// 
+	   marg("`output_folder'/") scales(kzf=(0(1)4) hsclg=(0(1)4))
+	   
+exit
+	   
+ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2)) ///
+       corrm("`output_folder'/empirCorrMatKZF.dta") /// 
+	   marg("`output_folder'") scales(kzf=(0(1)4) hsclg=(0(1)4))
+	   
+	   
+	   
+	   
+	   
+ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(kzf=(0.05 0.2)) ///
+       scales(kzf=(0(1)4) hsclg=(0(1)4))
+
 exit
 	
 * (error 900: maxvar issue; no room to add more variables)
