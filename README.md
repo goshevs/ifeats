@@ -9,6 +9,8 @@ The repo is still a bit messy but we are working on cleaning it up.
 
 ### Working programs
 
+****
+
 `core-programs.ado` -- core simulation programs that are currently under development
 
 The core program here is `ifeats`. It has the following syntax:
@@ -64,7 +66,8 @@ distibutions of the levels of every item, and then conducts the core simulation.
 
 - `wavemiss(kzf=(0 1) hsclg=(1 2))` waves missing for every scale
 - can be omitted in which case waves are selected at random
-- **must be specified** as `wavemiss(minmax(1 2))` if `propmiss` is selected to be block missingness across all scales in `namelist`
+- **must be specified** as `wavemiss(minmax(1 2))` if `propmiss` is selected to be block missingness across all scales in `namelist`;
+the user must specify in `minmax()` the minimum and maximum number of waves with missing values
 
 
 2. With an existing correlation matrix and/or marginal distributions of item levels
@@ -131,6 +134,7 @@ ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(0.2
 <br>
 <br>
 
+****
 
 `scales.ado` a file for creating cummulative distributions of scale items
 
@@ -138,6 +142,7 @@ The core programs here are `catDist` and `dataCorrMat`. Both programs are utilit
 used to extract the marginal distributions of item levels and correlation matrix of data.
 More about them will be posted soon.
 
+****
 
 ### Drafts
 
