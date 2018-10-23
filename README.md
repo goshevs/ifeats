@@ -74,7 +74,7 @@ the user must specify in `minmax()` the minimum and maximum number of waves with
 
 Irrespectively of whether data are present in memory, `ifeats` will use
 either or both stored (if provided) pieces of data, simulate the one that is not provided, 
-and then conduct the core simulate.
+and then conduct the core simulation.
 
 `propmiss` and `wavemiss` are specified as above
 
