@@ -53,7 +53,7 @@ syntax namelist, Nobs(numlist) scales(string) propmiss(string)  ///
 1. With a dataset loaded in memory
 
 `ifeats` retrieves the empirical correlation matrix and marginal 
-distibutions of the levels of every item, and then conducts the core simulation.
+distibutions of the levels of every item (if not provided by the user), and then conducts the core simulation.
 
 `propmiss` can be specified as:
 
