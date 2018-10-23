@@ -124,6 +124,8 @@ end
 
 **** Ask this super large question: Should we use temp files? Anyway we need the long variable names list. 
 
+
+*** Parse the scales string: scales(kzf=(numlist) hsclg=(numlist))
 capture program drop _genMarg
 program define _genMarg, rclass
 
@@ -152,7 +154,8 @@ program define _genMarg, rclass
 end
 
 
-capture program drop _extractInfo // retrieve number of items and waves
+*** Retrieve number of items and waves
+capture program drop _extractInfo
 program define _extractInfo, sclass
 
 	args namelist nwaves scale
@@ -210,7 +213,61 @@ program define _extractInfo, sclass
 end
 
 				
-				
+*** Sampling periods of missingness	
+cap mata : mata drop sample_periods()
+mata:
+void function sample_periods(string scalar nwaves, string vector wavemiss) {
+		real scalar ssize
+		real matrix timePoints
+		real matrix myperiod
+		real matrix mynewvar
+
+		nw = strtoreal(nwaves)
+		mwaves = strtoreal(tokens(wavemiss))
+		maxmw = rowmax(mwaves)
+		
+		ssize = st_nobs()
+		timePoints = J(1, nw, 1/nw)
+		myperiod = rdiscrete(ssize, maxmw, timePoints)
+
+		for (i=1; i<=maxmw; ++i) {
+			mynewvar = st_addvar("int", "missTime" + strofreal(i)+ "Point")
+			st_store((1, rows(myperiod)), mynewvar, myperiod[1..., i])
+		}
+		st_local("maxmwave", strofreal(maxmw))
+}
+end
+
+
+
+
+*** Introduce missingness
+capture program drop _introMiss
+program define _introMiss
+
+	args scale_items scaleMiss itemMiss i missType
+	
+	tempvar missCases unifScale
+	gen `unifScale' = runiform()
+	sort `unifScale'
+	gen `missCases' = (_n <= `scaleMiss' * _N)
+	foreach item of local scale_items {
+		if regexm("`item'", ".+_tp`i'$") {
+			if ("`missType'" == "random"){
+				tempvar unif
+				gen `unif' = runiform() 
+				gsort -`missCases' `unif'
+				replace `item' = . if _n <= `itemMiss' * _N
+			}
+			else {
+				replace `item' = . if `missCases' == 1
+			}
+		}
+	}
+end
+
+
+
 ********************************************************************************
 *** Simulation programme
 
@@ -253,7 +310,7 @@ program define ifeats, rclass
 		* noi di "`nameList'"
 		capture unab allItems: `nameList'
 		if (_rc == 0) {                           // get info from memory
-			noi di in y "Using variables in dataset loaded in memory"
+			* noi di in y "Using variables in dataset loaded in memory"
 			
 			*** retrieve number of time periods if not specified
 			if ("`nwaves'" == "-1") {
@@ -272,11 +329,14 @@ program define ifeats, rclass
 				local nItems "`nItems' `=`: list sizeof `scale'_items'/`nwaves''"
 			}
 			
+			*** TODO -->
+			*** check for matrices, if none, then run catDist and dataCorrMat
+			*** <--
 	
 		}
 		else if (_rc ~= 0) {                 // if no such stubs in the dataset
 			if ("`corrmatrix'" ~= "") {      // check correlation matrix if given
-				noi di in y "Using the correlation matrix"
+				* noi di in y "Using the correlation matrix"
 				preserve
 				use "`corrmatrix'", clear
 				_extractInfo "`namelist'" "`nwaves'"
@@ -287,7 +347,7 @@ program define ifeats, rclass
 				restore
 			}
 			else if ("`marginals'" ~= "") {   // check marginals if given
-				noi di in y "Using the marginal distribution(s)"
+				* noi di in y "Using the marginal distribution(s)"
 				preserve
 				local nItems ""
 				foreach scale of local namelist {
@@ -299,7 +359,7 @@ program define ifeats, rclass
 				restore
 			}	
 			else {
-				noi di in y "No dataset in memory, no correlation matrix or marginals given" 
+				* noi di in y "No dataset in memory, no correlation matrix or marginals given" 
 				if "`nwaves'" == "-1" | "`nitems'" == "" {
 					no di in r "Arguments nwaves and nitems are required in this case"
 					exit 1000
@@ -309,6 +369,16 @@ program define ifeats, rclass
 		* noi di "`nItems'"
 		* noi di "`nwaves'"
 	}
+	else {
+		parse_syntax "`nitems'"
+		local nItems ""
+		foreach scale of local namelist {
+			local nItems "`nItems' `s(`scale')'"
+		}
+	}
+	* noi di "`nItems'"
+	* noi di "`nwaves'"
+	
 	if ("`simmarg'" ~= "") { 	
 		*** Create even distribution. 
 	
@@ -393,22 +463,16 @@ program define ifeatsCore
 	}
 	
 
-
-
 	********************************************************************************
-	*** Define means and correlation
-		
-	local nTotalItems `=`=(`=subinstr("`nItems'", " ", "+",.)')' * `nwaves''
+	*** Simulation
+	********************************************************************************
 	
-	genmeans "`nTotalItems'"
-	mat means = r(means)	
-
+	*** Correlation matrix
 	
-	noi di "Simulating data..."
 	*  HAVE TO FIX THIS --->
 	if ("`simcorr'" ~= "") {	  // TODO
-		noi di "(Simulated correlation matrix)"
-		noi di "my nwithinitems: `nWithinItems'"
+		noi di "Simulating correlation matrix"
+		* noi di "my nwithinitems: `nWithinItems'"
 
 		gencombined, corw(`corw') corb(`corb') corbs(`corbs') ///
 			nWithinItems("`nWithinItems'") nwaves(`nwaves') nTotalItems(`nTotalItems') 
@@ -421,14 +485,21 @@ program define ifeatsCore
 		use "`corrmatrix'", clear
 		mkmat _all, matrix(rho)
 		restore
-		noi di "(Correlation matrix of the data loaded.)"
+		noi di "  Empirical correlation matrix loaded"
 	}
+	
+	*** Means
+	local nTotalItems `=`=(`=subinstr("`nItems'", " ", "+",.)')' * `nwaves''
+	
+	genmeans "`nTotalItems'"
+	mat means = r(means)	
 	
 	*** Simulate random normal data using the (empirical) distributions and corr mat
 	drawnorm myvar1-myvar`nTotalItems', means(means) corr(rho) n(`=_N')
 		
-	if ("`simmarg'" ~= "") {  // simluated marginals
-
+	if ("`simmarg'" ~= "") {  // simulated marginals
+		noi di "Simulating marginal distributions"
+		
 		*** Generate the item names
 		local scalePos = 1	
 		local j = 1
@@ -462,8 +533,9 @@ program define ifeatsCore
 		}
 	} // end of if
 	
-	else { // Use observed marginals 	
+	else { // Load and use  observed marginals	
 		*** Read in scale_cdist's as matrices
+		noi di "  Empirical marginal distributions loaded..." _c
 		local i = 1
 		qui foreach scale of local namelist {
 			*** Load the marginals, create matrices
@@ -499,6 +571,7 @@ program define ifeatsCore
 				local ++i
 			}
 		}
+		noi di " and applied to simulated data"
 	}
 	* sum	
 	********************************************************************************
@@ -506,115 +579,123 @@ program define ifeatsCore
 	********************************************************************************
 
 	noi di _n in y "Introducing missingness... "
-		
-	*** Parse the syntax of wavemiss propmiss and store into locals
-	parse_syntax "`wavemiss'" "_wmiss"  // wavemiss(sc1=(1 3) sc2=(0 1))
-	parse_syntax "`propmiss'" "_pmiss"   // propmiss(sc1=(0.2 0.6) sc2=(0.2 0.5)) (item scale)
-	qui foreach scale of local namelist {
-		local `scale'_pmiss `s(`scale'_pmiss)'   // rate of missing for an item and entire scale
-		local `scale'_wmiss `s(`scale'_wmiss)'   // waves missing (a list)
-		*local `scale'_bmiss : list posof "`scale'" in mblock  // is scale block missing?
-	}
 	
-	qui foreach scale of local namelist { // loop over scales
-
-		unab scale_items: `scale'*
-		*** Check how many values entered in sca_pmiss; 
-		*** assign values to item and scale missingness
-		local nvals: list sizeof `scale'_pmiss
-		if (`nvals' == 2) { // random missing case
-			local itemMiss: word 1 of ``scale'_pmiss'
-			* noi di "`itemMiss'"
-			local scaleMiss: word 2 of ``scale'_pmiss'
-			* noi di "`scaleMiss'"
-		}
-		else if (`nvals' == 1) {  // block missing case 
-			local scaleMiss "``scale'_pmiss'"
-			local `scale'_bmiss = 1
-		}	
-		else { // error
-			noi di "Error: have to specify at least one value per scale in propmiss"
-			exit 1000
-		}
-
-		if ("``scale'_bmiss'" == "") { // Block missing is 0: random missing pattern
-			noi di "   Missingness in scale `scale' is of random pattern"
-			*** if wavemiss not specified by user --> missingness across all waves
-			if ("``scale'_wmiss'" == "") {
-				if ("`itemMiss'" == "") {
-					noi di "Error: item missigness should be specified"
+	*** Identify the type of missingness requested by the user
+	
+	*** Block missing for all scales
+	if regexm("`propmiss'", "^[ ]*0\.[0-9]+[ ]*$") {  // feed only 1 value to propmiss == block missing
+	
+		noi di "   Missingness in dataset is of block random pattern"
+		
+		if regexm("`wavemiss'", "^minmax\([0-9]+ [0-9]+\)") {  // min and max number of missing waves
+			if regexm("`wavemiss'","[0-9]+ [0-9]+") {
+				local wavemiss "`=regexs(0)'"
+				capture numlist "`wavemiss'"
+				if _rc {
+					noi di in r "Error: wavemiss not specified correctly"
 					exit 1000
 				}
-				else {
-					*** Loop over waves and create missing observations in items
-					forval i = 0/`=`nwaves' - 1' {   // loop over waves
-						*** this could be a function
-						tempvar missCases unifScale
-						gen `unifScale' = runiform()
-						sort `unifScale'
-						gen `missCases' = (_n <= `scaleMiss' * _N)
-						foreach item of local scale_items {
-							if regexm("`item'", ".+_tp`i'$") {
-								tempvar unif
-								gen `unif' = runiform() 
-								gsort -`missCases' `unif'
-								replace `item' = . if _n <= `itemMiss' * _N
-							}
-						}
-					}
-				}
+				local wavemiss "`r(numlist)'"
+				local wavemiss: list uniq wavemiss	
 			}
-			else {  // wavemiss is specified by user 					
-				foreach i of local `scale'_wmiss {
-					* noi di "`i'"
-					tempvar missCases unifScale
-					gen `unifScale' = runiform()
-					sort `unifScale'
-					gen `missCases' = (_n <= `scaleMiss' * _N)
-					foreach item of local scale_items {
-						if regexm("`item'", ".+_tp`i'$") {
-							tempvar unif
-							gen `unif' = runiform() 
-							gsort -`missCases' `unif'
-							replace `item' = . if _n <= `itemMiss' * _N
-						}
-					}
-				}
-			}			
-		}  // end of random missing
+		}
 		
-		else { //Block random pattern of missingness
-			noi di "   Missingness in scale `scale' is of block random pattern"
-			*** if wavemiss not specified by user --> missingness across all waves
-			if ("``scale'_wmiss'" == "") {
-				forval i = 0/`=`nwaves' - 1' {   // loop over waves
-					tempvar missCases unifScale
-					gen `unifScale' = runiform()
-					sort `unifScale'
-					gen `missCases' = (_n <= `scaleMiss' * _N)
-					foreach item of local scale_items {
-						if regexm("`item'", ".+_tp`i'$") {
-							replace `item' = . if `missCases' == 1
-						}
+		tempvar missCases unif
+		gen `unif' = runiform()
+		sort `unif'
+		gen `missCases' = (_n <= `propmiss' * _N)
+	
+		mata: sample_periods("`nwaves'", "`wavemiss'")
+		
+		*** change values to missing for observations with obsmiss == 1 for the
+		*** selected time period
+		qui forval i = 1/`=_N' {
+			if (`missCases'[`i'] == 1) {
+				* noi di in g "`i'"
+				forval j = 1/`maxmwave' { 
+					local toMissing = missTime`j'Point[`i'] - 1
+					* no di in y "`toMissing'"
+					foreach var of varlist _all {
+						replace `var' = . if _n == `i' & substr("`var'", `=length("`var'")', `=length("`var'")') == "`toMissing'"
 					}
 				}
 			}
-			else {  // time periods of missingness are specified by user in wavemiss
-				foreach i of local `scale'_wmiss {
-					tempvar missCases unifScale
-					gen `unifScale' = runiform()
-					sort `unifScale'
-					gen `missCases' = (_n <= `scaleMiss' * _N)
-					foreach item of local scale_items {
-						if regexm("`item'", ".+_tp`i'$") {
-							replace `item' = . if `missCases' == 1
-						}
-					}
-				}
-			}
-		} // end of else
-	} // End of loop through namelist
+		}
+		drop  missTime?Point  // does not work well with tempvars
+	}
+	else {
+		*** Parse the syntax of wavemiss propmiss and store into locals
+		parse_syntax "`wavemiss'" "_wmiss"  // wavemiss(sc1=(1 3) sc2=(0 1))
+		parse_syntax "`propmiss'" "_pmiss"   // propmiss(sc1=(0.2 0.6) sc2=(0.2 0.5)) (item scale)
+		qui foreach scale of local namelist {
+			local `scale'_pmiss `s(`scale'_pmiss)'   // rate of missing for an item and entire scale
+			local `scale'_wmiss `s(`scale'_wmiss)'   // waves missing (a list)
+			*local `scale'_bmiss : list posof "`scale'" in mblock  // is scale block missing?
+		}
+		*noi di "``scale'_pmiss'"
+		*noi di "`s(block)'"
 
+		qui foreach scale of local namelist { // loop over scales
+
+			unab scale_items: `scale'*
+			*** Check how many values entered in sca_pmiss; 
+			*** assign values to item and scale missingness
+			local nvals: list sizeof `scale'_pmiss
+			if (`nvals' == 2) { // random missing case
+				local itemMiss: word 1 of ``scale'_pmiss'
+				* noi di "`itemMiss'"
+				local scaleMiss: word 2 of ``scale'_pmiss'
+				* noi di "`scaleMiss'"
+			}
+			else if (`nvals' == 1) {  // block missing per scale 
+				local scaleMiss "``scale'_pmiss'"
+				local `scale'_bmiss = 1
+			}	
+			else { // error
+				noi di in r "Error: have to specify at least one value per scale in propmiss"
+				exit 1000
+			}
+
+			if ("``scale'_bmiss'" == "") { // Block missing is 0: random missing pattern
+				noi di "   Missingness in scale `scale' is of random pattern"
+				*** if wavemiss not specified by user --> missingness across all waves
+				if ("``scale'_wmiss'" == "") {
+					if ("`itemMiss'" == "") {
+						noi di in r "Error: item missigness should be specified"
+						exit 1000
+					}
+					else {
+						*** Loop over waves and create missing observations in items
+						forval i = 0/`=`nwaves' - 1' {   // loop over waves
+							*** this could be a function
+							_introMiss "`scale_items'" "`scaleMiss'" "`itemMiss'" "`i'" "random"
+						}
+					}
+				}
+				else {  // wavemiss is specified by user 					
+					foreach i of local `scale'_wmiss {
+						_introMiss "`scale_items'" "`scaleMiss'" "`itemMiss'" "`i'" "random"
+					}
+				}			
+			}  // end of random missing
+			
+			else { //Block random pattern of missingness per scale
+				noi di "   Missingness in scale `scale' is of block random pattern"
+				*** if wavemiss not specified by user --> missingness across all waves
+				if ("``scale'_wmiss'" == "") {
+					forval i = 0/`=`nwaves' - 1' {   // loop over waves
+						_introMiss "`scale_items'" "`scaleMiss'" 0 "`i'" "block"
+					}
+				}
+				else {  // time periods of missingness are specified by user in wavemiss
+					foreach i of local `scale'_wmiss {
+						_introMiss "`scale_items'" "`scaleMiss'" 0 "`i'" "block"
+					}
+				}
+			} // end of else
+		} // End of loop through namelist
+	} // end of else
+	exit
 	
 	********************************************************************************
 	** Prepare data for imputation

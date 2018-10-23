@@ -13,6 +13,7 @@ set more off
 
 set maxvar 32000
 
+
 *** Point to directories depending on user
 if (c(username) == "goshev") {
 	local data_folder "~/Desktop/imputations/data"
@@ -47,38 +48,170 @@ qui do "https://raw.githubusercontent.com/goshevs/pchained-github/master/pchaine
 
 /*
 ***** Options for ifeats
-nobs        : sample sizes
-simcorb     : between-item correlation
-nwitems     : number of within items (essentially the number of time periods)
-ntitems     : number of total items (time periods * number of indicators)
-corw        : within-item correlation (over time)
-propmiss    : proportion of missing (based on obs)
-mblock      : block missing (boolean); all items missing in a period
-simcorr     : simulate corrMat or use empirical corrMat (boolean)
-storedcorr  :  if simvcov(0) then location of stored empirical corrMat 
-simmarginal :
-storedmarginal
-storedvars
+	* scales --> scales(sc1=(0(1)4) sc2=(0(1)4)): item levels of scales (required)
+	* nwaves(integer) --> number of waves/time periods (required for full simulation)
+	* nitems(string) --> nitems(sc1=12 sc2=36): number of items per scale (required for full simulation)
+	* propmiss(string) --> propmiss(kzf=(0.05 0.2) hsclg=(0.05 0.3)): for random missing (item missigness; scale missingness)
+	*                      propmiss(kzf=(0.2) hsclg=(0.3)): for block missing (scale missingness)
+						   propmiss(0.2): block missing for entire dataset (required for full simulation)
+	* wavemiss(sring)  --> wavemiss(kzf=(0 1) hsclg=(1 2)): waves missing for every scale
+						   wavemiss(minmax(1 2)): min and max number of missing waves (required for full simulation)
+	* corrmatrix(string) --> path and name of file containing correlation matrix for scales in namelist
+	* marginals(string) --> path to directory containing files of marginal distributions for scales in namelist
+
 */
 
-*** Using observed distributions
-/*
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1))  simcorr(0) ///
-        simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
-		marginals("`output_folder'")  mblock(kzf hsclg) nwavemiss(kzf=(0 1) hsclg=(1 2))
+
+********************************************************************************
+*** Using data in memory
+
+**** Complete syntax
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2))
+        
+		
+**** Randomly picking missing waves (random pattern)
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4))
+
+**** Block missing pattern per variable (mixed pattern also possible)	
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=0.3 hsclg=0.1) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4))
+
+**** Block missing pattern over all specified scales 
+ifeats kzf hsclg, nobs(50(50)100) propmiss(0.3) wavemiss(minmax(1 2)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4))
 
 
-*** NEW Syntax (no mblock)
-*** Random pattern (2 values in propmiss)
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(111) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1))  simcorr(0) ///
-        simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
-		marginals("`output_folder'") nwavemiss(kzf=(0 1) hsclg=(1 2))
 
-*** Block pattern (1 value in propmiss)
-ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=0.3 hsclg=0.05)  simcorr(0) ///
-        simmarginals(0)  corrmatrix("`output_folder'/empirCorrMat.dta") /// 
-		marginals("`output_folder'") nwavemiss(kzf=(0 1) hsclg=(1 2))
 
+********************************************************************************
+*** Using data in memory and previously stored corr matrix and marginals
+
+**** Complete syntax
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'") 
+		
+**** Randomly picking missing waves (random pattern)
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'") 
+
+**** Block missing pattern per variable (mixed pattern also possible)	
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=0.3 hsclg=0.1) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'")
+
+**** Block missing pattern over all specified scales
+ifeats kzf hsclg, nobs(50(50)100) propmiss(0.3) wavemiss(minmax(1 2)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'")
+
+
+
+********************************************************************************
+*** Using previously stored corr matrix/marginals, simulating what has not been provided
+
+*=== corr matrix and marginals ===*
+
+**** Complete syntax
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'")
+
+**** Randomly picking missing waves (random pattern)
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'")
+		
+**** Block missing pattern per variable	(mixed pattern also possible)	
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.3) hsclg=(0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'")
+		
+**** Block missing pattern over all specified scales
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(0.3) wavemiss(minmax(1 2)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta") marginals("`output_folder'")
+		
+
+*=== corr matrix only ===*
+
+**** Complete syntax
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2))  ///
+        corrmatrix("`output_folder'/empirCorrMat.dta")
+
+**** Randomly picking missing waves (random pattern)
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2)) ///
+        corrmatrix("`output_folder'/empirCorrMat.dta")
+		
+
+**** Block missing pattern per variable (mixed pattern also possible) 
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.3) hsclg=(0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4))  ///
+        corrmatrix("`output_folder'/empirCorrMat.dta")
+		
+**** Block missing pattern over all specified scales
+clear
+ifeats kzf hsclg, nobs(50(50)100) propmiss(0.3) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(minmax(1 2))  ///
+        corrmatrix("`output_folder'/empirCorrMat.dta")
+		
+
+*=== marginals only ===* DOES NOT WORK AT THIS TIME
+		
+**** Complete syntax
+clear
+capture ifeats kzf hsclg, nobs(50(50)100) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+		scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2)) ///
+        marginals("`output_folder'")
+		
+**** Randomly picking missing waves (random pattern)
+**** Block missing pattern per variable	(mixed pattern also possible)
+**** Block missing pattern over all specified scales
+		
+
+
+********************************************************************************
+*** Full simulation (simulating everything)
+
+**** Complete syntax
+clear
+ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+      scales(kzf=(0(1)4) hsclg=(0(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2)) //wavemiss could be skipped
+
+**** Block missing pattern per variable	(mixed pattern also possible)
+clear
+ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(kzf=(0.3) hsclg=(0.1)) ///
+      scales(kzf=(0(1)4) hsclg=(0(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2)) //wavemiss could be skipped
+	  
+**** Block missing pattern over all specified scales
+clear
+ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(0.2) ///
+      scales(kzf=(0(1)4) hsclg=(0(1)4)) wavemiss(minmax(1 2)) 	    
+	  
+exit
+	  
+		
+
+		
+		
+***************** END OF FILE **************************************************
+		
+		
+
+		
+		
 		
 		
 		
@@ -92,47 +225,42 @@ ifeats kzf hsclg, nobs(50(50)100) nwitems(3) ntitems(36) propmiss(kzf=(0.05 0.2)
 */
 
 
+*** New syntax
 
 * catDist kzf, scales(kzf=(0(1)4)) saving("`output_folder'")
 * dataCorrMat kzf hsclg, saving("`output_folder'/empirCorrMatKZF.dta") 
- 
- /*
+
+/*
 ifeats, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2)) ///
        corrm("`output_folder'/empirCorrMatKZF.dta") /// 
 	   marg("`output_folder'") scales(kzf=(0(1)4) hsclg=(0(1)4))
 
-	*/
-
-/*
-ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2)) ///
-       corrm("`output_folder'/empirCorrMat.dta") /// 
-	   marg("`output_folder'") scales(kzf=(0(1)4) hsclg=(0(1)4))
-
-exit
-	*/
-	
-
 clear
-ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2) hsclg=(0.3)) ///
+ifeats kzf hsclg, nobs(100(100)200) nwaves(3) propmiss(kzf=(0.05 0.2) hsclg=(0.3)) ///
 	   corrm("`output_folder'/empirCorrMat.dta") /// 
 	   scales(kzf=(0(1)4) hsclg=(0(1)4))
-exit
-   
-clear
 
+clear
 ifeats kzf hsclg, nobs(500(500)1000) propmiss(kzf=(0.05 0.2)) ///
        marg("`output_folder'/") scales(kzf=(0(1)4) hsclg=(0(1)4))
 
 clear
-*/
-clear
-
 ifeats kzf hsclg, nobs(500(500)1000) propmiss(kzf=(0.05 0.2)) ///
        scales(kzf=(0(1)4) hsclg=(0(1)4))
+
+*/
+  
+
 	   
+
 	   
 exit
-	 
+	   
+
+	   
+exit
+
+	
 ifeats kzf hsclg, nobs(500(500)1000) propmiss(kzf=(0.05 0.2)) ///
        corrm("`output_folder'/empirCorrMat.dta") /// 
 	   marg("`output_folder'/") scales(kzf=(0(1)4) hsclg=(0(1)4))
@@ -143,10 +271,10 @@ ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) propmiss(kzf=(0.05 0.2)) ///
        corrm("`output_folder'/empirCorrMatKZF.dta") /// 
 	   marg("`output_folder'") scales(kzf=(0(1)4) hsclg=(0(1)4))
 	   
+		*/   
 	   
 	   
-	   
-	   
+clear
 ifeats kzf hsclg, nobs(500(500)1000) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(kzf=(0.05 0.2)) ///
        scales(kzf=(0(1)4) hsclg=(0(1)4))
 
