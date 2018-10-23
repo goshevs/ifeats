@@ -9,7 +9,7 @@ The repo is still a bit messy but we are working on cleaning it up.
 
 ### Working programs
 
-* core-programs.ado      : core simulation programs that are currently under development
+`core-programs.ado` -- core simulation programs that are currently under development
 
 The core program here is `ifeats`. It has the following syntax:
 
@@ -48,26 +48,26 @@ syntax namelist, Nobs(numlist) scales(string) propmiss(string)  ///
 
 `ifeats` can be used in several different modes:
 
-* With a dataset loaded in memory
+1. With a dataset loaded in memory
 
 `ifeats` retrieves the empirical correlation matrix and marginal 
 distibutions of the levels of every item, and then conducts the core simulation.
 
 `propmiss` can be specified as:
 
-    - `propmiss(kzf=(0.05 0.2) hsclg=(0.05 0.3)`) for random missing (item missigness, scale missingness)
-    - `propmiss(kzf=(0.2) hsclg=(0.3))` for block missing (scale missingness)
-    - `propmiss(kzf=(0.2) hsclg=(0.05 0.3)`) for mixed missing pattern
-    - `propmiss(0.2)` for block missingness across all scales in `namelist`
+- `propmiss(kzf=(0.05 0.2) hsclg=(0.05 0.3))` for random missing (item missigness, scale missingness)
+- `propmiss(kzf=(0.2) hsclg=(0.3))` for block missing (scale missingness)
+- `propmiss(kzf=(0.2) hsclg=(0.05 0.3)`) for mixed missing pattern
+- `propmiss(0.2)` for block missingness across all scales in `namelist`
 
 `wavemiss` can be specified as:
 
-    - `wavemiss(kzf=(0 1) hsclg=(1 2))` waves missing for every scale
-    - can be omitted in which case waves are selected at random
-    - **must be specified** as `wavemiss(minmax(1 2))` if `propmiss` is selected to be block missingness across all scales in `namelist`
+- `wavemiss(kzf=(0 1) hsclg=(1 2))` waves missing for every scale
+- can be omitted in which case waves are selected at random
+- **must be specified** as `wavemiss(minmax(1 2))` if `propmiss` is selected to be block missingness across all scales in `namelist`
 
 
-* With an existing correlation matrix and/or marginal distributions of item levels
+2. With an existing correlation matrix and/or marginal distributions of item levels
 
 Irrespectively of whether data are present in memory, `ifeats` will use
 either or both stored (if provided) pieces of data, simulate the one that is not provided, 
@@ -76,26 +76,25 @@ and then conduct the core simulate.
 `propmiss` and `wavemiss` are specified as above
 
 
-* Full simulation
+3. Full simulation
 
 `ifeats` will simulate the correlation matrix and marginal distributions of item levels and
 use both in the core simulation.
 
-`propmiss` and `wavemiss` are specified as above
-
-`nwaves` and `nitems` are required arguments
+`propmiss` and `wavemiss` are specified as above; `nwaves` and `nitems` are required arguments
 <br>
 
 
-Types of missingness simulated:
-    - Random pattern by item and scale
-    - Block missing by scale
-    - Mixed pattern (a combination of the previous two)
-    - Block missing across scales in `namelist`
+*Types of missingness simulated*:
+
+- Random pattern by item and scale
+- Block missing by scale
+- Mixed pattern (a combination of the previous two)
+- Block missing across scales in `namelist`
+
 
 
 *Some examples (more available in test.do)*
-
 
 ```
 
@@ -119,7 +118,8 @@ ifeats kzf hsclg, nobs(50(50)100) propmiss(0.3) wavemiss(minmax(1 2)) ///
 
 **** Complete syntax
 clear
-ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
+ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) ///
+	  propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
       scales(kzf=(0(1)4) hsclg=(0(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2))
 
 
@@ -129,10 +129,10 @@ ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(0.2
       scales(kzf=(0(1)4) hsclg=(0(1)4)) wavemiss(minmax(1 2)) 	    
 ```
 <br>
+<br>
 
 
-
-* scales.ado             : file for creating cummulative distributions of scale items
+`scales.ado` a file for creating cummulative distributions of scale items
 
 The core programs here are `catDist` and `dataCorrMat`. Both programs are utility programs
 used to extract the marginal distributions of item levels and correlation matrix of data.
