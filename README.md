@@ -150,7 +150,9 @@ There are two important utility programs in `ifeats.ado`: `catDist` and `dataCor
 Both programs are called by `ifeats` in some modes but can also be used as stand-alone programs.
 
 <br>
+
 *******
+
 `catDist`
 
 <br>
@@ -172,6 +174,7 @@ syntax namelist, saving(string)
 | *saving*    | a path pointing to a directory where the marginal distributions should be stored |
 
 <br>
+
 *******
 
 <br>
@@ -205,6 +208,7 @@ syntax namelist, scales(string) [saving(string)]
 | *saving*       | a directory and filename to be used for the file containing the empirical correlation matrix  |
 
 <br>
+
 *******
 
 
