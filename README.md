@@ -1,23 +1,24 @@
 ## Imputation Feasibility Testing for Scales
 
-This repo contains programs that help identify sufficient conditions for successful imputation of scales with mi impute chained.
-
-The repo is still a bit messy but we are working on cleaning it up.
+The repo contains programs that help identify sufficient conditions for successful imputation of scales with mi impute chained.
 
 
-## Contents of this repo
+### Introduction
 
-### Working programs
+Working with small samples and scales of multiple items that are subject to moderate missingness is challenging. 
+In such settings, imputation could help tackle the missingness problem and avoid loosing observations.
+However, in ultra-wide datasets and small number of observations, chained imputation fails routinely.
+Our goal is to develop a package that would help researchers identify sufficient conditions for succesfull chained imputation.
 
-****
 
-`core-programs.ado` -- core simulation programs that are currently under development
+### Core simulation program
 
-The core program here is `ifeats`. It has the following syntax:
+The core program `ifeats` is located in `ifeats.ado`. It has the following syntax:
 
 ```
-syntax namelist, Nobs(numlist) scales(string) propmiss(string)  /// 
-	       [nwaves(integer) nitems(string) wavemiss(string) /// 
+syntax namelist, Nobs(numlist) scales(string) /// 
+	       [nwaves(integer) nitems(string) tcorr(string) ///
+		    propmiss(string) wavemiss(string) psdtol(real) /// 
 		    CORRMatrix(string) MARGinals(string)]
 ```
 
@@ -36,12 +37,13 @@ syntax namelist, Nobs(numlist) scales(string) propmiss(string)  ///
 
 **Options and conditionally required arguments:**
 
-
 | argument       | description            |
 |----------------|------------------------|
 | *nwaves*       | number of waves/time periods; required if conducting a full simulation |
 | *nitems*       | number of items per scale: `nitems(sc1=12 sc2=36)`; required if conducting a full simulation |
+| *tcorr*        | theoretical correlations, within-item and between-items as well as inter-scale item corration; required if simulating correlation matrix; see below for mode specific syntax|
 | *wavemiss*     | missing waves, conditinally required; see below for mode specific syntax |
+| *psdtol*       | tolerance in positive semi-definite matrix projection |
 | *CORRMatrix*   | location of empirical correlation matrix |
 | *MARGinals*    | location of empirical marginal distributions of items |
 
@@ -78,13 +80,17 @@ and then conduct the core simulation.
 
 `propmiss` and `wavemiss` are specified as above
 
+If simulating the correlation matrix, option `tcorr` is required. `tcorr` can be specified as:
+- `corr(kzf=(0.9 0.2) hsclg=(0.8 0.6) corrmat=matName)`: per scale within item and between item correlations; corrmat is a matrix 
+of inter-scale item correlations. Item correlation are assumed to be identical across all items of two scale and hence for 2 scales, corrmat 
+has to be a 2x2 matrix. If corrmat is not specified, iter-scale correlations are assumed to be 0.
 
-3. Full simulation
+3. Full simulation (simulating both marginal distributions and correlation matrix)
 
 `ifeats` will simulate the correlation matrix and marginal distributions of item levels and
 use both in the core simulation.
 
-`propmiss` and `wavemiss` are specified as above; `nwaves` and `nitems` are required arguments
+`propmiss` and `wavemiss` are specified as above; `nwaves`, `nitems` and `tcorr` are required arguments
 <br>
 
 
@@ -121,39 +127,101 @@ ifeats kzf hsclg, nobs(50(50)100) propmiss(0.3) wavemiss(minmax(1 2)) ///
 
 **** Complete syntax
 clear
-ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) ///
+mat myCorrMat = (1, 0.5 \ 0.5, 1)
+ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) /// 
 	  propmiss(kzf=(0.1 0.3) hsclg=(0.05 0.1)) ///
-      scales(kzf=(0(1)4) hsclg=(0(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2))
-
+      scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(kzf=(0 1) hsclg=(1 2)) ///
+	  tcorr(kzf=(0.9 0.2) hsclg=(0.8 0.6) corrmat=myCorrMat)
 
 **** Block missing pattern over all specified scales
 clear
-ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) propmiss(0.2) ///
-      scales(kzf=(0(1)4) hsclg=(0(1)4)) wavemiss(minmax(1 2)) 	    
+ifeats kzf hsclg, nobs(50(50)100) nwaves(3) nitems(kzf=12 hsclg=25) /// 
+	  propmiss(0.2) scales(kzf=(0(1)4) hsclg=(1(1)4)) wavemiss(minmax(1 2)) ///   
+	  tcorr(kzf=(0.9 0.2) hsclg=(0.8 0.6))	    
 ```
 <br>
 <br>
 
-****
 
-`scales.ado` a file for creating cummulative distributions of scale items
 
-The core programs here are `catDist` and `dataCorrMat`. Both programs are utility programs
-used to extract the marginal distributions of item levels and correlation matrix of data.
-More about them will be posted soon.
+### Utility programs 
 
-****
+There are two important utility programs in `ifeats.ado`: `catDist` and `dataCorrMat`.
+Both programs are called by `ifeats` in some modes but can also be used as stand-alone programs.
 
-### Drafts
+<br>
+
+`catDist` 
+
+<br>
+
+`catDist` creates the marginal commulative distributions of scale items. It creates
+separate files for every scale. The syntax is as follows:
+
+```
+syntax namelist, saving(string)
+```
+
+`catDist` takes the following arguments:
+
+**Required**
+
+| argument    | description            |
+|-------------|------------------------|
+| *namelist*  | the stubs of the scales that will be simulated and imputed|
+| *saving*    | a path pointing to a directory where the marginal distributions should be stored |
+
+<br>
+<br>
+
+`dataCorrMat`
+
+<br>
+
+`dataCorrMat` creates the empirical correlation matrix of the data in memory. It has the following
+syntax:
+
+```
+syntax namelist, scales(string) [saving(string)]
+```
+
+`dataCorrMat` takes the following arguments:
+
+**Required**
+
+| argument    | description            |
+|-------------|------------------------|
+| *namelist*  | the stubs of the scales that will be simulated and imputed |
+| *scales*    | a list of the item levels of every scale in `namelist`: `scales(sc1=(0(1)4) sc2=(0(1)4))` |
+
+<br>
+
+**Optional arguments:**
+
+| argument       | description            |
+|----------------|------------------------|
+| *saving*       | a directory and filename to be used for the file containing the empirical correlation matrix  |
+
+<br>
+
+
+
+### TODO
+
+- pull out outcomes of psd projection and display them
+- check security (file persistence)
+- plug and play module for fiml
+- variance assessment for successful imputation
+
+
+
+### Other programs/files
+
+#### Drafts
 
 * diagnostic-tools.ado   : draft of programs to identify problems with data
 * scale-preprocessing.ado: a draft scale item cleaning utility
 
-### Older scripts
+#### Testing script
 
-* myvcov.ado             : *old script* for simulating binary and multi-category items
-* binary.ado             : *old script* for simulating binary variables
-
-### Testing script
-
-* test.do                : file for testing with working examples
+* examples.do                : file for testing with working examples
