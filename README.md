@@ -7,8 +7,8 @@ The repo contains programs that help identify sufficient conditions for successf
 
 Working with small samples and scales of multiple items that are subject to moderate missingness is challenging. 
 In such settings, imputation could help tackle the missingness problem and avoid loosing observations.
-However, in ultra-wide datasets and small number of observations, chained imputation fails routinely.
-Our goal is to develop a package that would help researchers identify sufficient conditions for succesfull chained imputation.
+However, in ultra-wide datasets with a small number of observations, chained imputation fails routinely.
+Our goal is to develop a package that would help researchers identify sufficient conditions for succesful chained imputation.
 
 ### Installation
 
@@ -88,10 +88,10 @@ and then conduct the core simulation.
 
 `propmiss` and `wavemiss` are specified as above
 
-If simulating the correlation matrix, option `tcorr` is required. `tcorr` can be specified as:
-- `corr(kzf=(0.9 0.2) hsclg=(0.8 0.6) corrmat=matName)`: per scale within item and between item correlations; corrmat is a matrix 
-of inter-scale item correlations. Item correlation are assumed to be identical across all items of two scale and hence for 2 scales, corrmat 
-has to be a 2x2 matrix. If corrmat is not specified, iter-scale correlations are assumed to be 0.
+If simulating the correlation matrix, option `tcorr` is **required**. `tcorr` can be specified as:
+- `corr(kzf=(0.9 0.2) hsclg=(0.8 0.6) corrmat=matName)`: per scale within item and between item correlations; `corrmat` is a matrix 
+of inter-scale item correlations. Item correlations are assumed to be identical across all items of two scale and hence for 2 scales, `corrmat`
+would be a 2x2 matrix. If `corrmat` is not specified, inter-scale correlations are assumed to be 0.
 
 3. Full simulation (simulating both marginal distributions and correlation matrix)
 
