@@ -10,6 +10,14 @@ In such settings, imputation could help tackle the missingness problem and avoid
 However, in ultra-wide datasets and small number of observations, chained imputation fails routinely.
 Our goal is to develop a package that would help researchers identify sufficient conditions for succesfull chained imputation.
 
+### Installation
+
+There is no need of installation. Simply include the following line in your do file to load ifeats
+and accompanying utility programs:
+
+```
+do https://raw.githubusercontent.com/goshevs/ifeats/master/ifeats.ado
+```
 
 ### Core simulation program
 
