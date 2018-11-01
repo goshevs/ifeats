@@ -103,7 +103,7 @@ use both in the core simulation.
 
 
 
-*Some examples (more available in test.do)*
+*Some examples (more available in examples.do)*
 
 ```
 
@@ -150,8 +150,8 @@ There are two important utility programs in `ifeats.ado`: `catDist` and `dataCor
 Both programs are called by `ifeats` in some modes but can also be used as stand-alone programs.
 
 <br>
-
-`catDist` 
+*******
+`catDist`
 
 <br>
 
@@ -172,6 +172,8 @@ syntax namelist, saving(string)
 | *saving*    | a path pointing to a directory where the marginal distributions should be stored |
 
 <br>
+*******
+
 <br>
 
 `dataCorrMat`
@@ -203,7 +205,7 @@ syntax namelist, scales(string) [saving(string)]
 | *saving*       | a directory and filename to be used for the file containing the empirical correlation matrix  |
 
 <br>
-
+*******
 
 
 ### TODO
@@ -219,9 +221,9 @@ syntax namelist, scales(string) [saving(string)]
 
 #### Drafts
 
-* diagnostic-tools.ado   : draft of programs to identify problems with data
+* diagnostic-tools.ado   : drafts of programs to identify problems in data
 * scale-preprocessing.ado: a draft scale item cleaning utility
 
-#### Testing script
+#### Examples/testing
 
 * examples.do                : file for testing with working examples
