@@ -24,9 +24,9 @@ do https://raw.githubusercontent.com/goshevs/ifeats/master/ifeats.ado
 The core program `ifeats` is located in `ifeats.ado`. It has the following syntax:
 
 ```
-syntax namelist, Nobs(numlist) scales(string) /// 
-	       [nwaves(integer) nitems(string) tcorr(string) ///
-		    propmiss(string) wavemiss(string) psdtol(real) /// 
+syntax scale_stubs, Nobs(numlist) scales(string) propmiss(string)  /// 
+	     	   [nwaves(integer) nitems(string) tcorr(string) ///
+		    wavemiss(string) psdtol(real) /// 
 		    CORRMatrix(string) MARGinals(string)]
 ```
 
@@ -34,12 +34,12 @@ syntax namelist, Nobs(numlist) scales(string) ///
 
 **Required**
 
-| argument    | description            |
-|-------------|------------------------|
-| *namelist*  | the stubs of the scales that will be simulated and imputed|
-| *Nobs*      | a number list of sample sizes to be simulated |
-| *scales*    | a list of the item levels of every scale in `namelist`: `scales(sc1=(0(1)4) sc2=(0(1)4))` |
-| *propmiss*  | proportion missing observations; see below for mode specific syntax |
+| argument      | description            |
+|---------------|------------------------|
+| *scale_stubs* | the stubs of the scales that will be simulated and imputed|
+| *Nobs*        | a number list of sample sizes to be simulated |
+| *scales*      | a list of the item levels of every scale in `namelist`: `scales(sc1=(0(1)4) sc2=(0(1)4))` |
+| *propmiss*    | proportion missing observations; see below for mode specific syntax |
 
 <br>
 
