@@ -753,7 +753,7 @@ program define ifeats, rclass
 	}
 	* noi di "`nItems'"
 	* noi di "`nwaves'"
-	
+
 	if ("`simmarg'" ~= "") { 	
 		*** Create even distribution. 
 		_genMarg `namelist', scales(`scales') nwaves(`nwaves') nItems(`nItems')
@@ -1055,9 +1055,7 @@ program define ifeatsCore
 		}
 	}
 	local allItemsReshape: list uniq allItemsReshape
-	noi di "`allItemsReshape'"
-
-	
+		
 	qui gen id = _n
 	qui reshape long `allItemsReshape', i(id) j(time)
 	
@@ -1071,7 +1069,8 @@ program define ifeatsCore
 	
 	*** Impute; run -pchained-
 	noi di _n in y "Imputing with pchained..."
-	capture noisily pchained `namelist', i(id) t(time) mio(add(1) burnin(10) chaindots)
+	noi di "`noisily'"
+	capture pchained `namelist', i(id) t(time) mio(add(1) burnin(10) chaindots)
 	
 	if _rc ~= 0 {
 		noi di in r "Failed"
