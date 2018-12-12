@@ -8,15 +8,14 @@ The repo contains programs that help identify sufficient conditions for successf
 Working with small samples and scales of multiple items that are subject to moderate missingness is challenging. 
 In such settings, imputation could help tackle the missingness problem and avoid loosing observations.
 However, in ultra-wide datasets with a small number of observations, chained imputation fails routinely.
-Our goal is to develop a package that would help researchers identify sufficient conditions for succesful chained imputation.
+Our goal is to develop a package that would help researchers identify sufficient conditions for successful chained imputation.
 
 ### Installation
 
-There is no need of installation. Simply include the following line in your do file to load ifeats
-and accompanying utility programs:
+To load `ifeats` and accompanying utility programs include the following line in your do file:
 
 ```
-do https://raw.githubusercontent.com/goshevs/ifeats/master/ifeats.ado
+qui do https://raw.githubusercontent.com/goshevs/ifeats/master/ifeats.ado
 ```
 
 ### Core simulation program
@@ -38,7 +37,7 @@ syntax scale_stubs, Nobs(numlist) scales(string) propmiss(string)  ///
 |---------------|------------------------|
 | *scale_stubs* | the stubs of the scales that will be simulated and imputed|
 | *Nobs*        | a number list of sample sizes to be simulated |
-| *scales*      | a list of the item levels of every scale in `namelist`: `scales(sc1=(0(1)4) sc2=(0(1)4))` |
+| *scales*      | a list of the item levels of every scale in `scale_stubs`: `scales(sc1=(0(1)4) sc2=(0(1)4))` |
 | *propmiss*    | proportion missing observations; see below for mode specific syntax |
 
 <br>
@@ -70,13 +69,13 @@ distibutions of the levels of every item (if not provided by the user), and then
 - `propmiss(kzf=(0.05 0.2) hsclg=(0.05 0.3))` for random missing (item missigness, scale missingness)
 - `propmiss(kzf=(0.2) hsclg=(0.3))` for block missing (scale missingness)
 - `propmiss(kzf=(0.2) hsclg=(0.05 0.3)`) for mixed missing pattern
-- `propmiss(0.2)` for block missingness across all scales in `namelist`
+- `propmiss(0.2)` for block missingness across all scales in `scale_stubs`
 
 `wavemiss` can be specified as:
 
 - `wavemiss(kzf=(0 1) hsclg=(1 2))` waves missing for every scale
 - can be omitted in which case waves are selected at random
-- **must be specified** as `wavemiss(minmax(1 2))` if `propmiss` is selected to be block missingness across all scales in `namelist`;
+- **must be specified** as `wavemiss(minmax(1 2))` if `propmiss` is selected to be block missingness across all scales in `scale_stubs`;
 the user must specify in `minmax()` the minimum and maximum number of waves with missing values
 
 
@@ -107,7 +106,7 @@ use both in the core simulation.
 - Random pattern by item and scale
 - Block missing by scale
 - Mixed pattern (a combination of the previous two)
-- Block missing across scales in `namelist`
+- Block missing across scales in `scale_stubs`
 
 
 
@@ -169,17 +168,17 @@ Both programs are called by `ifeats` in some modes but can also be used as stand
 separate files for every scale. The syntax is as follows:
 
 ```
-syntax namelist, saving(string)
+syntax scale_stubs, saving(string)
 ```
 
 `catDist` takes the following arguments:
 
 **Required**
 
-| argument    | description            |
-|-------------|------------------------|
-| *namelist*  | the stubs of the scales that will be simulated and imputed|
-| *saving*    | a path pointing to a directory where the marginal distributions should be stored |
+| argument       | description            |
+|----------------|------------------------|
+| *scale_stubs*  | the stubs of the scales that will be simulated and imputed|
+| *saving*       | a path pointing to a directory where the marginal distributions should be stored |
 
 <br>
 
@@ -195,17 +194,17 @@ syntax namelist, saving(string)
 syntax:
 
 ```
-syntax namelist, scales(string) [saving(string)]
+syntax scale_stubs, scales(string) [saving(string)]
 ```
 
 `dataCorrMat` takes the following arguments:
 
 **Required**
 
-| argument    | description            |
-|-------------|------------------------|
-| *namelist*  | the stubs of the scales that will be simulated and imputed |
-| *scales*    | a list of the item levels of every scale in `namelist`: `scales(sc1=(0(1)4) sc2=(0(1)4))` |
+| argument       | description            |
+|----------------|------------------------|
+| *scale_stubs*  | the stubs of the scales that will be simulated and imputed |
+| *scales*       | a list of the item levels of every scale in `scale_stubs`: `scales(sc1=(0(1)4) sc2=(0(1)4))` |
 
 <br>
 
