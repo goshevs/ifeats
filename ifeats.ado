@@ -57,7 +57,7 @@ program define dataCorrMat
 		save `saving', replace
 		restore
 		
-		noi di in y "done."
+		noi di in y "done"
 	}
 end
 
@@ -177,7 +177,7 @@ program define catDist
 			
 			if "`saving'" ~= "" {
 				qui copy `scale'_cdist.dta `saving'/, replace
-				di in gr "`scale'_cdist saved."
+				di in gr "`scale'_cdist saved"
 			}
 		} // end of scale
 	}
@@ -1069,7 +1069,7 @@ program define ifeatsCore
 	
 	*** Impute; run -pchained-
 	noi di _n in y "Imputing with pchained... "
-	noi di in y "Imputation ... " _c
+	noi di in y "Imputation... " _c
 	
 	capture pchained `namelist', i(id) t(time) mio(add(1) burnin(10) chaindots)
 	
@@ -1077,7 +1077,7 @@ program define ifeatsCore
 		noi di in r "failed"
 	}
 	else {
-		noi di in g "succeded"
+		noi di in g "succeeded"
 	}
 	*** Store results
 	mat simmat[`rows', `cols'] = _rc
