@@ -46,7 +46,6 @@ catDist kzf hsclg, scales(kzf=(0(1)4) hsclg=(1(1)4)) saving("`output_folder'")
 *** Obtain the empirical correlation matrix of the data
 dataCorrMat kzf hsclg, saving("`output_folder'/empirCorrMat.dta") 
 
-
 ********************************************************************************
 *** Using data in memory
 
