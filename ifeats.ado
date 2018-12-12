@@ -1068,15 +1068,16 @@ program define ifeatsCore
 	********************************************************************************
 	
 	*** Impute; run -pchained-
-	noi di _n in y "Imputing with pchained..."
-	noi di "`noisily'"
+	noi di _n in y "Imputing with pchained... "
+	noi di in y "Imputation ... " _c
+	
 	capture pchained `namelist', i(id) t(time) mio(add(1) burnin(10) chaindots)
 	
 	if _rc ~= 0 {
-		noi di in r "Failed"
+		noi di in r "failed"
 	}
 	else {
-		noi di in g "Succeeded"
+		noi di in g "succeded"
 	}
 	*** Store results
 	mat simmat[`rows', `cols'] = _rc
