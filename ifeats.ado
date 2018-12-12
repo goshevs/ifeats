@@ -1075,7 +1075,9 @@ program define ifeatsCore
 	if _rc ~= 0 {
 		noi di in r "Failed"
 	}
-	
+	else {
+		noi di in g "Succeeded"
+	}
 	*** Store results
 	mat simmat[`rows', `cols'] = _rc
 
