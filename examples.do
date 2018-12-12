@@ -31,8 +31,8 @@ else {
 
 *** Load data and programmes
 use "`data_folder'/test-data", clear
-qui do "`script_folder'/scales.ado"
-qui do "`script_folder'/core-programs.ado"
+qui do "`script_folder'/ifeats.ado"
+
 
 snapshot save
 

@@ -76,7 +76,7 @@ program define catDist
 		if "`scales'" ~= "" {
 			parse_syntax "`scales'"
 		}
-
+		
 		foreach scale of local namelist { //iterate over scales
 			unab scale_items: `scale'*
 			
@@ -100,11 +100,14 @@ program define catDist
 			_n      "** Scale `scale' " ///
 			_n      "****************************************"
 			
+			local userInput "`s(`scale')'"
+			
 			if "`labs'" ~= "" {
 				*** Compare LABELs with user input
-				local userInput "`s(`scale')'"
 				compare_lists "`labs'" "`userInput'"
-						
+				
+				noi di "A label exist for this scale. Inferring levels from label."
+				
 				if "`s(differences)'" == "" {
 					noi di in y "LABELS: user input matches label information."
 				}
@@ -114,17 +117,23 @@ program define catDist
 					_n "    Using user input"
 				}
 			}
-			
-			*** Compare ITEM CATS with user input
-			compare_lists "`catsData'" "`userInput'"
-			
-			if "`s(differences)'" == "" {
-				noi di in y "DATA: user input matches categories in items."
-			}
 			else {
-				noi di in y "DATA: item categories are DIFFERENT from user input. " ///
-				_n "    Differences are: `s(differences)'" /// 
-				_n "    Using user input"
+				*** Compare ITEM CATS with user input
+				if "`scales'" ~= "" {
+					parse_syntax "`scales'"
+				}
+				compare_lists "`catsData'" "`userInput'"
+
+				noi di "No labels for this scale. Inferring levels from data."
+			
+				if "`s(differences)'" == "" {
+					noi di in y "DATA: user input matches categories in items."
+				}
+				else {
+					noi di in y "DATA: item categories are DIFFERENT from user input. " ///
+					_n "    Differences are: `s(differences)'" /// 
+					_n "Using user input"
+				}
 			}
 			
 			noi di in y _n "Creating marginal distributions of items of scale `scale'"
@@ -152,7 +161,6 @@ program define catDist
 				drop _freq pct_`item'
 				
 				*** Merge item files
-				
 				if (`counter' == 1) {
 					save `scale'_cdist, replace // USE TEMP FILES
 				}
@@ -163,6 +171,7 @@ program define catDist
 				
 				local ++counter
 				restore
+			
 			} // end of items of a scale
 			
 			
@@ -1062,7 +1071,7 @@ program define ifeatsCore
 	
 	*** Impute; run -pchained-
 	noi di _n in y "Imputing with pchained..."
-	capture noisily pchained `namelist', p(id) t(time) mio(add(1) burnin(10) chaindots)
+	capture noisily pchained `namelist', i(id) t(time) mio(add(1) burnin(10) chaindots)
 	
 	if _rc ~= 0 {
 		noi di in r "Failed"
